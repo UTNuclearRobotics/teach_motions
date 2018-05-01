@@ -4,12 +4,12 @@
   <!-- Jogging nodes for both arms -->
   <!--                             -->
 
-	<rosparam command="load" file="$(find teach_motions)/cfg/right_arm_jog_settings.yaml" ns="right_arm" />
+	<rosparam command="load" file="$(find teach_motions)/cfg/sim_right_jog_settings.yaml" ns="right_arm" />
 	<node name="right_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
 	    <param name="parameter_ns" type="string" value="right_arm" /> 
 	</node>
 
-	<rosparam command="load" file="$(find teach_motions)/cfg/left_arm_jog_settings.yaml" ns="left_arm" />
+	<rosparam command="load" file="$(find teach_motions)/cfg/sim_left_jog_settings.yaml" ns="left_arm" />
 	<node name="left_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
 	    <param name="parameter_ns" type="string" value="left_arm" /> 
 	</node>
@@ -31,6 +31,7 @@
 
   <rosparam command="load" file="$(find teach_motions)/cfg/dual_arm_husky.yaml" />
 
+  <!-- Typically run this separately after the jogging nodes have time to initialize -->
 <!--  <node name="read_and_send" pkg="teach_motions" type="read_and_send" output="screen" /> -->
 
 </launch>
