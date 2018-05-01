@@ -1,0 +1,368 @@
+#!/usr/bin/env python
+
+################################################################
+# Record a robot's end-effector pose as it is taught by a human.
+################################################################
+
+###############################################################################
+#      Title     : teach_motions
+#      Project   : teach_motions
+#      Created   : 4/23/2018
+#      Author    : Andy Zelenak
+#      Platforms : Ubuntu 64-bit
+#      Copyright : Copyright The University of Texas at Austin, 2014-2017. All rights reserved.
+#
+#          All files within this directory are subject to the following, unless an alternative
+#          license is explicitly included within the text of each file.
+#
+#          This software and documentation constitute an unpublished work
+#          and contain valuable trade secrets and proprietary information
+#          belonging to the University. None of the foregoing material may be
+#          copied or duplicated or disclosed without the express, written
+#          permission of the University. THE UNIVERSITY EXPRESSLY DISCLAIMS ANY
+#          AND ALL WARRANTIES CONCERNING THIS SOFTWARE AND DOCUMENTATION,
+#          INCLUDING ANY WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+#          PARTICULAR PURPOSE, AND WARRANTIES OF PERFORMANCE, AND ANY WARRANTY
+#          THAT MIGHT OTHERWISE ARISE FROM COURSE OF DEALING OR USAGE OF TRADE.
+#          NO WARRANTY IS EITHER EXPRESS OR IMPLIED WITH RESPECT TO THE USE OF
+#          THE SOFTWARE OR DOCUMENTATION. Under no circumstances shall the
+#          University be liable for incidental, special, indirect, direct or
+#          consequential damages or loss of profits, interruption of business,
+#          or related expenses which may arise from use of software or documentation,
+#          including but not limited to those resulting from defects in software
+#          and/or documentation, or loss or inaccuracy of data of any kind.
+#
+###############################################################################
+
+
+
+# Ask user, how many arms to teach?
+
+# Prompt the user to save a photo of the start pose
+
+# Begin teaching for arm[i]
+
+# Wait for a nonzero velocity
+
+# Record the EE pose to datafile @ X Hz
+# Stop recording when EE velocities are ~zero again
+
+# Loop for next arm
+
+# Perform post-processing to calculate EE velocity at each timestep,
+# and scale the trajectories so motions of all arms match in duration.
+
+from control_msgs.msg import *
+from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Vector3Stamped
+
+import csv
+import moveit_commander
+import rospkg
+import rospy
+import sys
+import tf.transformations
+import tf2_ros
+import tf2_geometry_msgs
+
+class teach_motions:
+
+  def __init__(self):
+    self.movegroup_names = []
+    self.ee_frame_names = []
+    self.controller_topics = []
+    self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
+    self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+    self.joint_positions = []
+    self.joint_difference_threshold = 0.0000000001 # Count a jt difference >this as "in motion"
+    self.ini_pose = []
+
+    # Store poses in these variables before writing to spreadsheet
+    self.time_history = []
+    self.x_dot_history = []
+    self.y_dot_history = []
+    self.z_dot_history = []
+    self.roll_dot_history = []
+    self.pitch_dot_history = []
+    self.yaw_dot_history = []
+
+    # Do it
+    self.get_parameters()
+    self.prompt_to_save_photo()
+    self.record_data()
+
+
+  # Get the number, names, and tf frame names for each end-effector
+  def get_parameters(self):
+    self.num_arms = rospy.get_param("teach_motions/num_arms")
+
+    for arm_index in range( 0, int(self.num_arms) ):
+      param_string = "teach_motions/ee" + str(arm_index) + "/movegroup_name"
+      self.movegroup_names.append( rospy.get_param(param_string) )
+
+      param_string = "teach_motions/ee" + str(arm_index) + "/ee_frame_name"
+      self.ee_frame_names.append( rospy.get_param(param_string) )
+
+      param_string = "teach_motions/ee" + str(arm_index) + "/controller_topic"
+      self.controller_topics.append( rospy.get_param(param_string) )
+
+    # Prompt user for the filename
+    self.datafile_name = raw_input("Enter the datafile name, e.g. 'handle7': ")
+
+    rospy.loginfo("Recording data for these movegroups: ")
+    rospy.loginfo(self.movegroup_names)
+
+    rospy.loginfo("These are the end-effector frame names: ")
+    rospy.loginfo(self.ee_frame_names)
+
+    rospy.loginfo("These are the controller topics: ")
+    rospy.loginfo(self.controller_topics)
+
+
+  # Remind the user to save a photo of the start pose
+  def prompt_to_save_photo(self):
+    rospy.loginfo ("Save a photo of the start pose to teach_motions/images.")
+    raw_input("Press ENTER to continue.")
+
+
+  # We use this JointTrajectoryControllerState msg to get joint velocities
+  def joint_state_cb(self, data):
+    self.joint_positions = data.actual.positions
+
+
+  # Check if the robot is in motion.
+  # Return 1 if in motion, else 0.
+  def check_nonzero_velocity(self, controller_topic):
+    avg_jt_diff = 0
+
+    for i in range(0, len(self.joint_positions)):
+      avg_jt_diff += abs(self.joint_positions[i]-self.prev_jts[i])
+    avg_jt_diff /= len(self.joint_positions)
+
+    # If possibly stationary, wait for a couple more joint messages to confirm
+    if ( avg_jt_diff < self.joint_difference_threshold):
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+
+      # Do the calcs again with the fresh joint message
+      avg_jt_diff = 0
+
+      for i in range(0, len(self.joint_positions)):
+        avg_jt_diff += abs(self.joint_positions[i]-self.prev_jts[i])
+      avg_jt_diff /= len(self.joint_positions)
+
+      if ( avg_jt_diff < self.joint_difference_threshold):
+        return 0
+
+    self.prev_jts = self.joint_positions
+
+    return 1
+
+
+  # Start recording poses for each arm.
+  # We do this one-at-a-time because only 1x UR5 can be taught at a time.
+  def record_data(self):
+    for arm_index in range( 0, int(self.num_arms) ):
+      rospy.loginfo ("Recording the pose for movegroup %s", self.movegroup_names[arm_index])
+
+      rospy.Subscriber(self.controller_topics[arm_index], JointTrajectoryControllerState, self.joint_state_cb, queue_size=1)
+
+      # MoveIt setup
+      group = moveit_commander.MoveGroupCommander(self.movegroup_names[arm_index])
+
+      # Wait for an initial joint velocity msg to do initialization
+      rospy.wait_for_message(self.controller_topics[arm_index], JointTrajectoryControllerState)
+      # Give the callback some time to populate these joint lists
+      rospy.sleep(0.5)
+      self.prev_jts = self.joint_positions
+
+      # Wait for the human to start moving the robot
+      self.ini_pose.append( group.get_current_pose() )
+      linear_motion_threshold = 0.001  # Count as moving if motion is >this [m]
+      quat_motion_threshold = 0.001  # Count as moving if motion is >this [rad]
+      d = rospy.Duration(0.01, 0)
+      while not rospy.is_shutdown():
+        pose = group.get_current_pose()
+        if (
+          (abs(pose.pose.position.x-self.ini_pose[arm_index].pose.position.x) > linear_motion_threshold) or
+          (abs(pose.pose.position.y-self.ini_pose[arm_index].pose.position.y) > linear_motion_threshold) or
+          (abs(pose.pose.position.z-self.ini_pose[arm_index].pose.position.z) > linear_motion_threshold) or
+          (abs(pose.pose.orientation.x-self.ini_pose[arm_index].pose.orientation.x) > quat_motion_threshold) or
+          (abs(pose.pose.orientation.y-self.ini_pose[arm_index].pose.orientation.y) > quat_motion_threshold) or
+          (abs(pose.pose.orientation.z-self.ini_pose[arm_index].pose.orientation.z) > quat_motion_threshold) or
+          (abs(pose.pose.orientation.w-self.ini_pose[arm_index].pose.orientation.w) > quat_motion_threshold)
+        ):
+          break
+        rospy.sleep(d)
+
+      # Write an initial velocity of zero
+      start = rospy.Time.now()
+      self.time_history.append( (rospy.Time.now()-start).to_sec() )
+      self.x_dot_history.append( 0 )
+      self.y_dot_history.append( 0 )
+      self.z_dot_history.append( 0 )
+      self.roll_dot_history.append( 0 )
+      self.pitch_dot_history.append( 0 )
+      self.yaw_dot_history.append( 0 )
+
+
+      ###################################################
+      # Record the EE velocity to datafile @ X Hz
+      # Stop recording when EE velocities are ~zero again
+      ###################################################
+      r = rospy.Rate(125)
+      start = rospy.Time.now()
+      prev_pose = group.get_current_pose()
+      # Preallocate variables in loop
+      q1_inv = tf.transformations.quaternion_from_euler(0,0,0)
+      q2 = tf.transformations.quaternion_from_euler(0,0,0)
+      qr = tf.transformations.quaternion_from_euler(0,0,0)
+      trans_vector = Vector3Stamped()
+      trans_vector.header.frame_id = prev_pose.header.frame_id
+      rot_vector = Vector3Stamped()
+      rot_vector.header.frame_id = prev_pose.header.frame_id
+      prev_time = rospy.Time.now()
+      current_pose = group.get_current_pose()
+
+      # Get an Euler velocity approximation
+      while ((not rospy.is_shutdown()) and self.check_nonzero_velocity(self.controller_topics[arm_index]) ):
+        current_pose = group.get_current_pose()
+
+        delta_t = rospy.Time.now().to_sec() - prev_time.to_sec()
+
+        # Calculate the 'difference' from previous pose to current pose.
+        # Do this in base_link frame since it's stationary, then transform to EE frame.
+        # For x/y/z, that's delta_x = x(i) - x(i-1).
+        # For quaternions:
+        # q(i) = q_r*q(i-1)  -->  q_r = q(i)*q(i-1)'
+        # q(i-1) needs to be inverted, i.e. negate the w component.
+        # See https://stackoverflow.com/questions/8781129/when-i-have-two-orientation-quaternions-how-do-i-find-the-rotation-quaternion-n
+        trans_vector.vector.x = current_pose.pose.position.x - prev_pose.pose.position.x
+        trans_vector.vector.y = current_pose.pose.position.y - prev_pose.pose.position.y
+        trans_vector.vector.z = current_pose.pose.position.z - prev_pose.pose.position.z
+
+        # 'Initialize' quaternions
+        q1_inv[0] = prev_pose.pose.orientation.x
+        q1_inv[1] = prev_pose.pose.orientation.y
+        q1_inv[2] = prev_pose.pose.orientation.z
+        q1_inv[3] = -prev_pose.pose.orientation.w # Negate for inverse
+
+        q2[0] = current_pose.pose.orientation.x
+        q2[1] = current_pose.pose.orientation.y
+        q2[2] = current_pose.pose.orientation.z
+        q2[3] = current_pose.pose.orientation.w
+
+        qr = tf.transformations.quaternion_multiply(q2, q1_inv)
+
+        # Convert this change in orientation to rpy
+        (rot_vector.vector.x, rot_vector.vector.y, rot_vector.vector.z) = tf.transformations.euler_from_quaternion([qr[0], qr[1], qr[2], qr[3]])
+
+        # Do the transformations.
+        # Make sure this relative change in pose is in the EE frame.
+        # Also remove a leading slash, if any:
+        if ( (current_pose.header.frame_id != self.ee_frame_names[arm_index]) and (current_pose.header.frame_id.strip("/") != self.ee_frame_names[arm_index]) ):
+          source_frame = current_pose.header.frame_id.strip("/")
+          transform = self.tf_buffer.lookup_transform(self.ee_frame_names[arm_index], source_frame, rospy.Time(0), rospy.Duration(1.))
+          trans_vector = tf2_geometry_msgs.do_transform_vector3(trans_vector, transform)
+          rot_vector = tf2_geometry_msgs.do_transform_vector3(rot_vector, transform)
+
+        # Store the calculated pose so we can write it to spreadsheet later
+        # Occassionally we get an erroneous reading. Toss those.
+        if ( delta_t != 0 and
+          abs(trans_vector.vector.x/delta_t) < 1 and
+          abs(trans_vector.vector.y/delta_t) < 1 and
+          abs(trans_vector.vector.z/delta_t) < 1 and
+          abs(rot_vector.vector.x/delta_t) < 1 and
+          abs(rot_vector.vector.y/delta_t) < 1 and
+          abs(rot_vector.vector.z/delta_t) < 1
+        ):          
+          self.time_history.append( (rospy.Time.now()-start).to_sec() )
+          self.x_dot_history.append( trans_vector.vector.x/delta_t )
+          self.y_dot_history.append( trans_vector.vector.y/delta_t )
+          self.z_dot_history.append( trans_vector.vector.z/delta_t )
+          self.roll_dot_history.append( rot_vector.vector.x/delta_t )
+          self.pitch_dot_history.append( rot_vector.vector.y/delta_t )
+          self.yaw_dot_history.append( rot_vector.vector.z/delta_t )
+          prev_time = rospy.Time.now()
+
+        prev_pose = current_pose
+        r.sleep()
+
+
+      # Write a final velocity of zero
+      self.time_history.append( (rospy.Time.now()-start).to_sec() )
+      self.x_dot_history.append( 0 )
+      self.y_dot_history.append( 0 )
+      self.z_dot_history.append( 0 )
+      self.roll_dot_history.append( 0 )
+      self.pitch_dot_history.append( 0 )
+      self.yaw_dot_history.append( 0 )
+
+      self.save_to_csv(arm_index)
+
+      # Prepare to print some useful info
+      ini_orient = tf.transformations.euler_from_quaternion([
+        self.ini_pose[arm_index].pose.orientation.x,
+        self.ini_pose[arm_index].pose.orientation.y,
+        self.ini_pose[arm_index].pose.orientation.z,
+        self.ini_pose[arm_index].pose.orientation.w
+        ])
+
+      final_orient = tf.transformations.euler_from_quaternion([
+        current_pose.pose.orientation.x,
+        current_pose.pose.orientation.y,
+        current_pose.pose.orientation.z,
+        current_pose.pose.orientation.w
+        ])
+
+      rospy.loginfo("--------------------------------------------------------")
+      rospy.loginfo("Change in pose in " + current_pose.header.frame_id + ": ")
+      rospy.loginfo("X: " + str( current_pose.pose.position.x - self.ini_pose[arm_index].pose.position.x ))
+      rospy.loginfo("Y: " + str( current_pose.pose.position.y - self.ini_pose[arm_index].pose.position.y ))
+      rospy.loginfo("Z: " + str( current_pose.pose.position.z - self.ini_pose[arm_index].pose.position.z ))
+      rospy.loginfo("Roll: " + str( (final_orient[0] - ini_orient[0])*180/3.14159) + " deg" )
+      rospy.loginfo("Pitch: " + str( (final_orient[1] - ini_orient[1])*180/3.14159) + " deg" )
+      rospy.loginfo("Yaw: " + str( (final_orient[2] - ini_orient[2])*180/3.14159) + " deg" )
+      rospy.loginfo("--------------------------------------------------------")
+
+
+      # Clear the stored values before collecting more data on the next arm
+      self.time_history = []
+      self.x_dot_history = []
+      self.y_dot_history = []
+      self.z_dot_history = []
+      self.roll_dot_history = []
+      self.pitch_dot_history = []
+      self.yaw_dot_history = []
+
+
+  def save_to_csv(self, arm_index):
+    filepath = rospkg.RosPack().get_path('teach_motions')
+    with open(filepath + '/data/' + self.datafile_name + '_arm' + str(arm_index) + '.csv', 'w') as csvfile:
+      writer = csv.writer(csvfile)
+
+      # Write column titles
+      writer.writerow(["Time", "X_dot", "Y_dot", "Z_dot", "Roll_dot", "Pitch_dot", "Yaw_dot"])
+
+      for t,x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot in zip( self.time_history,
+        self.x_dot_history,
+        self.y_dot_history,
+        self.z_dot_history,
+        self.roll_dot_history,
+        self.pitch_dot_history,
+        self.yaw_dot_history):
+        
+        writer.writerow([t, x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot])
+    
+
+if __name__ == '__main__':
+  moveit_commander.roscpp_initialize(sys.argv)
+  rospy.init_node('teach_motions', anonymous=True)
+
+  teacher = teach_motions()
+
+  rospy.spin

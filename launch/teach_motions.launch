@@ -1,0 +1,7 @@
+<launch>
+
+  <rosparam command="load" file="$(find teach_motions)/cfg/dual_arm_husky.yaml" />
+
+  <node name="teach_motions" pkg="teach_motions" type="teach_motions" output="screen" />
+
+</launch>

@@ -1,0 +1,331 @@
+#!/usr/bin/env python
+
+################################################################
+# Synchronize and fit splines through (possibly multi-)arm data.
+################################################################
+
+###############################################################################
+#      Title     : process_pose_data
+#      Project   : teach_motions
+#      Created   : 4/23/2018
+#      Author    : Andy Zelenak
+#      Platforms : Ubuntu 64-bit
+#      Copyright : Copyright The University of Texas at Austin, 2014-2017. All rights reserved.
+#
+#          All files within this directory are subject to the following, unless an alternative
+#          license is explicitly included within the text of each file.
+#
+#          This software and documentation constitute an unpublished work
+#          and contain valuable trade secrets and proprietary information
+#          belonging to the University. None of the foregoing material may be
+#          copied or duplicated or disclosed without the express, written
+#          permission of the University. THE UNIVERSITY EXPRESSLY DISCLAIMS ANY
+#          AND ALL WARRANTIES CONCERNING THIS SOFTWARE AND DOCUMENTATION,
+#          INCLUDING ANY WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+#          PARTICULAR PURPOSE, AND WARRANTIES OF PERFORMANCE, AND ANY WARRANTY
+#          THAT MIGHT OTHERWISE ARISE FROM COURSE OF DEALING OR USAGE OF TRADE.
+#          NO WARRANTY IS EITHER EXPRESS OR IMPLIED WITH RESPECT TO THE USE OF
+#          THE SOFTWARE OR DOCUMENTATION. Under no circumstances shall the
+#          University be liable for incidental, special, indirect, direct or
+#          consequential damages or loss of profits, interruption of business,
+#          or related expenses which may arise from use of software or documentation,
+#          including but not limited to those resulting from defects in software
+#          and/or documentation, or loss or inaccuracy of data of any kind.
+#
+###############################################################################
+
+
+# Load ROS params
+
+# Load the saved data for each arm
+
+# Lengthen the timestamps for whatever arm's trajectory duration was shorter
+
+# Fit splines through the pose datapts for each arm
+
+# Differentiate the splines to calculate a velocity at each datapoint
+
+# Save the final trajectory(-ies)
+
+from scipy.interpolate import UnivariateSpline
+
+import csv
+import matplotlib.pyplot as plt
+import math
+import moveit_commander
+import numpy as np
+import rospkg
+import rospy
+import sys
+import tf
+
+class process_pose_data:
+
+  def __init__(self):
+    self.num_arms = 1
+    self.movegroup_names = []
+
+    # Store incoming data in these variables
+    self.incoming_times = []
+    self.incoming_x = []
+    self.incoming_y = []
+    self.incoming_z = []
+    self.incoming_roll = []
+    self.incoming_pitch = []
+    self.incoming_yaw = []
+
+    # We convert quat to rpy
+    self.wrapped_roll = []
+    self.wrapped_pitch = []
+    self.wrapped_yaw = []
+
+    # Output data
+    self.outgoing_times = []
+    self.outgoing_x_dot = []
+    self.outgoing_y_dot = []
+    self.outgoing_z_dot = []
+    self.outgoing_roll_dot = []
+    self.outgoing_pitch_dot = []
+    self.outgoing_yaw_dot = []
+
+    #######
+    # Do it
+    #######
+    self.get_parameters()
+    self.load_data()
+
+    if self.num_arms > 1:
+      self.compress_and_synch_times()
+
+    self.fit_splines()
+    self.save_data()
+
+
+  # Get the number, names, and tf frame names for each end-effector
+  def get_parameters(self):
+    self.num_arms = rospy.get_param("teach_motions/num_arms")
+
+    self.interpolation_timestep = float( rospy.get_param("teach_motions/interpolation_timestep") )
+
+    for arm_index in range( 0, int(self.num_arms) ):
+      param_string = "teach_motions/ee" + str(arm_index) + "/movegroup_name"
+      self.movegroup_names.append( rospy.get_param(param_string) )
+
+      param_string = "teach_motions/output_tf_frame"
+      self.tf_of_incoming_data = rospy.get_param(param_string)
+
+    # Prompt user for the filename
+    self.datafile_name = raw_input("Enter the datafile name, e.g. 'handle7': ")
+
+    rospy.loginfo("The interpolation timestep will be [s]: ")
+    rospy.loginfo(self.interpolation_timestep)
+
+    rospy.loginfo("These are the movegroups: ")
+    rospy.loginfo(self.movegroup_names)
+
+    rospy.loginfo("This is the output frame: ")
+    rospy.loginfo(self.tf_of_incoming_data)
+
+
+  def load_data(self):
+    filepath = rospkg.RosPack().get_path('teach_motions')
+
+    # Read columns of data for each arm, then combine them
+    for arm_index in range( 0, int(self.num_arms) ):
+      with open(filepath + '/data/' + self.datafile_name + '_arm' + str(arm_index) + '.csv', 'r') as csvfile:
+        reader = csv.reader(csvfile)
+        data = list(reader)
+
+        # Reject column headers
+        data.pop(0)
+
+        # Retrieve the rest of the data
+        # (for example) Time history for arm0 is at self.incoming_times[0]
+        # First time sample for arm0 is at self.incoming_times[0][0]
+        self.incoming_times.append([col[0] for col in data])
+        self.incoming_x.append([col[1] for col in data])
+        self.incoming_y.append([col[2] for col in data])
+        self.incoming_z.append([col[3] for col in data])
+        self.incoming_roll.append([col[4] for col in data])
+        self.incoming_pitch.append([col[5] for col in data])
+        self.incoming_yaw.append([col[6] for col in data])
+
+      # Convert quaternions to rpy
+      # Better to do this in postprocessing because DAQ is already slow
+      roll = []
+      pitch = []
+      yaw = []
+      for r, p, y in zip(
+        self.incoming_roll[arm_index],
+        self.incoming_pitch[arm_index],
+        self.incoming_yaw[arm_index]
+      ):
+        roll.append(float(r))
+        pitch.append(float(p))
+        yaw.append(float(y))
+
+      # Wrap the angles
+      self.wrap(roll)
+      self.wrap(pitch)
+      self.wrap(yaw)
+
+      # Plot
+      #t = np.linspace(0, float(self.incoming_times[arm_index][-1]), 100)
+      #plt.plot(self.incoming_times[arm_index], roll, 'g', lw=3, alpha=0.7)
+      #plt.title('Wrapped roll')
+      #plt.show()
+
+      self.wrapped_roll.append( roll )
+      self.wrapped_pitch.append( pitch )
+      self.wrapped_yaw.append( yaw )
+
+
+  # Make a list of angles continuous.
+  # Possible issue: what if we need to subtract 540* to make continuous again?
+  # This only accounts for 360* (max) of correction.
+  def wrap(self, angle_list):
+    diff = 0
+    # prev_angle starts at index 0
+    # angle_list[index] starts at index 1
+    for index, prev_angle in enumerate(angle_list, start=1):
+      # Make sure we don't go past end of list
+      if index<len(angle_list):
+        diff = angle_list[index]-prev_angle
+
+        if (diff > 3.14159):
+          angle_list[index] = angle_list[index]-2*3.141592654
+        elif (diff < -3.14159):
+          angle_list[index] = angle_list[index]+2*3.141592654
+
+
+  def compress_and_synch_times(self):
+    # Haven't needed to figure out how to synchronize >2 arms yet
+    if self.num_arms != 2:
+      rospy.logerr('More than 2 arms is not supported')
+      sys.exit
+
+    # Find ratio: duration_of_traj0/duration_of_traj1
+    ratio = float(self.incoming_times[0][-1]) / float(self.incoming_times[1][-1])
+    print ''
+    print 'Ratio of trajectory durations (Arm0/Arm1): '
+    print ratio
+    print ''
+
+    # Lengthen all timesteps in whichever trajectory was faster
+    # (could do it the other way around, but that would speed up the arm's trajectory)
+    # (--> potentially dangerous)
+
+    if ratio > 1:
+      faster_arm_index = 1
+      for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
+        # Lengthen each timestep
+        delta_t = ratio * float(self.incoming_times[faster_arm_index][i]) - float(t)
+        self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+    else:
+      faster_arm_index = 0
+      for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
+        # Lengthen each timestep
+        delta_t = (1/ratio) * float(self.incoming_times[faster_arm_index][i]) - float(t)
+        self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+
+
+  def fit_splines(self):
+
+    # Fit splines for one arm at a time
+    # Differentiate the spline to calculate a velocity at a fixed timestep
+    for arm_index in range( 0, int(self.num_arms) ):
+      x_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_x[arm_index], k=5)
+
+      y_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_y[arm_index], k=5)
+
+      z_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_z[arm_index], k=5)
+
+      roll_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_roll[arm_index], k=5)
+
+      pitch_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_pitch[arm_index], k=5)
+
+      yaw_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_yaw[arm_index], k=5)
+
+      # Fill the outgoing data lists with derivative approximations
+      self.outgoing_times = np.linspace(0, float(self.incoming_times[1][-1]), float(self.incoming_times[1][-1]) / self.interpolation_timestep )
+      # Temporary list to hold a single column of data
+      x_dot_this_arm = []
+      y_dot_this_arm = []
+      z_dot_this_arm = []
+      roll_dot_this_arm = []
+      pitch_dot_this_arm = []
+      yaw_dot_this_arm = []
+
+      for t in self.outgoing_times:
+        x_dot_this_arm.append( x_dot(t) )
+        y_dot_this_arm.append( y_dot(t) )
+        z_dot_this_arm.append( z_dot(t) )
+        roll_dot_this_arm.append( roll_dot(t) )
+        pitch_dot_this_arm.append( pitch_dot(t) )
+        yaw_dot_this_arm.append( yaw_dot(t) )
+      
+      # Combine data series for all arms.
+      # First column holds data for arm0
+      # Second column holds data for arm1
+      self.outgoing_x_dot.append( x_dot_this_arm )
+      self.outgoing_y_dot.append( y_dot_this_arm )
+      self.outgoing_z_dot.append( z_dot_this_arm )
+      self.outgoing_roll_dot.append( roll_dot_this_arm )
+      self.outgoing_pitch_dot.append( pitch_dot_this_arm )
+      self.outgoing_yaw_dot.append( yaw_dot_this_arm )
+
+
+      # Plot splines
+      t = np.linspace(0, float(self.incoming_times[arm_index][-1]), 100)
+
+      plt.plot(t, x_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('x_dot')
+      plt.show()
+
+      plt.plot(t, y_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('y_dot')
+      plt.show()
+
+      plt.plot(t, z_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('z_dot')
+      plt.show()
+
+      plt.plot(t, roll_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('roll_dot')
+      plt.show()
+
+      plt.plot(t, pitch_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('pitch_dot')
+      plt.show()
+
+      plt.plot(t, yaw_dot(t), 'g', lw=3, alpha=0.7)
+      plt.title('yaw_dot')
+      plt.show()
+
+  def save_data(self):
+    filepath = rospkg.RosPack().get_path('teach_motions')
+
+    # Read columns of data for each arm, then combine them
+    for arm_index in range( 0, int(self.num_arms) ):
+      # add '_processed' to filename
+      with open(filepath + '/data/' + self.datafile_name + '_arm' + str(arm_index) + '_processed.csv', 'w') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # Write column titles
+        writer.writerow(["Time", "x_dot", "y_dot", "z_dot", "roll_dot", "pitch_dot", "yaw_dot"])
+        
+        for t,x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot in zip( self.outgoing_times,
+          self.outgoing_x_dot[arm_index],
+          self.outgoing_y_dot[arm_index],
+          self.outgoing_z_dot[arm_index],
+          self.outgoing_roll_dot[arm_index],
+          self.outgoing_pitch_dot[arm_index],
+          self.outgoing_yaw_dot[arm_index]):
+          
+          writer.writerow([t, x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot])
+
+if __name__ == '__main__':
+  moveit_commander.roscpp_initialize(sys.argv)
+  rospy.init_node('process_pose_data', anonymous=True)
+
+processor = process_pose_data()

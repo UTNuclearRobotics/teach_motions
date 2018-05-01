@@ -1,0 +1,15 @@
+
+teach_motions:
+  output_tf_frame:  base_link  # Frame to save the recorded data in
+  interpolation_timestep:  0.008  # 125 Hz
+  num_arms: 2
+  ee0:
+    movegroup_name:  left_arm
+    ee_frame_name: l_ur5_arm_ee_link
+    controller_topic:  /l_arm_controller/state
+    jog_cmd_topic:  jog_arm_server/left_arm/delta_jog_cmds
+  ee1:
+    movegroup_name:  right_arm
+    ee_frame_name: r_ur5_arm_ee_link
+    controller_topic:  /r_arm_controller/state
+    jog_cmd_topic:  jog_arm_server/right_arm/delta_jog_cmds
