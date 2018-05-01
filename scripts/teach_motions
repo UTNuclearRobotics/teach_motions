@@ -52,9 +52,10 @@
 # Perform post-processing to calculate EE velocity at each timestep,
 # and scale the trajectories so motions of all arms match in duration.
 
-from control_msgs.msg import *
+from copy import deepcopy
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Vector3Stamped
+from sensor_msgs.msg import JointState
 
 import csv
 import moveit_commander
@@ -70,12 +71,12 @@ class teach_motions:
   def __init__(self):
     self.movegroup_names = []
     self.ee_frame_names = []
-    self.controller_topics = []
     self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
     self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
     self.joint_positions = []
-    self.joint_difference_threshold = 0.0000000001 # Count a jt difference >this as "in motion"
+    self.joint_difference_threshold = 0.000000001 # Count a jt difference >this as "in motion"
     self.ini_pose = []
+    self.joint_names = []
 
     # Store poses in these variables before writing to spreadsheet
     self.time_history = []
@@ -103,11 +104,22 @@ class teach_motions:
       param_string = "teach_motions/ee" + str(arm_index) + "/ee_frame_name"
       self.ee_frame_names.append( rospy.get_param(param_string) )
 
-      param_string = "teach_motions/ee" + str(arm_index) + "/controller_topic"
-      self.controller_topics.append( rospy.get_param(param_string) )
+    self.joints_topic = rospy.get_param("teach_motions/joints_topic")
 
     # Prompt user for the filename
     self.datafile_name = raw_input("Enter the datafile name, e.g. 'handle7': ")
+
+    # Get the name of the joints for each MoveGroup
+    robot = moveit_commander.RobotCommander()
+    for arm_index in range( 0, int(self.num_arms) ):
+      self.joint_names.append(robot.get_joint_names( self.movegroup_names[arm_index] ))
+      # This is a hack for the UR5 simulation
+      if len(self.joint_names[arm_index]) == 7:
+        self.joint_names[arm_index] = self.joint_names[arm_index][:-1]
+    
+    # Initialize the joint value list to the right size, too
+    for arm_index in range( 0, int(self.num_arms) ):
+      self.joint_positions.append ([0. for item in self.joint_names[arm_index]])
 
     rospy.loginfo("Recording data for these movegroups: ")
     rospy.loginfo(self.movegroup_names)
@@ -115,50 +127,59 @@ class teach_motions:
     rospy.loginfo("These are the end-effector frame names: ")
     rospy.loginfo(self.ee_frame_names)
 
-    rospy.loginfo("These are the controller topics: ")
-    rospy.loginfo(self.controller_topics)
+    rospy.loginfo("This is the joint topic: ")
+    rospy.loginfo(self.joints_topic)
 
 
   # Remind the user to save a photo of the start pose
   def prompt_to_save_photo(self):
-    rospy.loginfo ("Save a photo of the start pose to teach_motions/images.")
+    print ''
+    print 'Save a photo of the start pose to teach_motions/images.'
     raw_input("Press ENTER to continue.")
+    print ''
 
 
-  # We use this JointTrajectoryControllerState msg to get joint velocities
+  # We use this JointState msg to get joint velocities
   def joint_state_cb(self, data):
-    self.joint_positions = data.actual.positions
+    # There may be joints from multiple arms mixed into one message.
+    # Parse out the joints we're interested in for each arm.
+    for arm_index in range( 0, int(self.num_arms) ):
+      for incoming_jt_index, incoming_joint_name in enumerate( data.name ):
+        for known_jt_index, known_joint_name in enumerate( self.joint_names[arm_index] ):
+          if incoming_joint_name == known_joint_name:
+            self.joint_positions[arm_index][known_jt_index] = data.position[incoming_jt_index]
 
 
   # Check if the robot is in motion.
   # Return 1 if in motion, else 0.
-  def check_nonzero_velocity(self, controller_topic):
+  def check_nonzero_velocity(self, arm_index):
+
     avg_jt_diff = 0
 
-    for i in range(0, len(self.joint_positions)):
-      avg_jt_diff += abs(self.joint_positions[i]-self.prev_jts[i])
-    avg_jt_diff /= len(self.joint_positions)
+    for i in range(0, len(self.joint_positions[arm_index])):
+      avg_jt_diff += abs(self.joint_positions[arm_index][i]-self.prev_jts[arm_index][i])
+    avg_jt_diff /= len(self.joint_positions[arm_index])
 
     # If possibly stationary, wait for a couple more joint messages to confirm
     if ( avg_jt_diff < self.joint_difference_threshold):
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
-      rospy.wait_for_message(controller_topic, JointTrajectoryControllerState)
+      rospy.wait_for_message(self.joints_topic, JointState)
+      rospy.wait_for_message(self.joints_topic, JointState)
+      rospy.wait_for_message(self.joints_topic, JointState)
+      rospy.wait_for_message(self.joints_topic, JointState)
+      rospy.wait_for_message(self.joints_topic, JointState)
+      rospy.wait_for_message(self.joints_topic, JointState)
 
       # Do the calcs again with the fresh joint message
       avg_jt_diff = 0
 
-      for i in range(0, len(self.joint_positions)):
-        avg_jt_diff += abs(self.joint_positions[i]-self.prev_jts[i])
-      avg_jt_diff /= len(self.joint_positions)
+      for i in range(0, len(self.joint_positions[arm_index])):
+        avg_jt_diff = avg_jt_diff + abs(self.joint_positions[arm_index][i] - self.prev_jts[arm_index][i])
+      avg_jt_diff /= len(self.joint_positions[arm_index])
 
       if ( avg_jt_diff < self.joint_difference_threshold):
         return 0
 
-    self.prev_jts = self.joint_positions
+    self.prev_jts = deepcopy(self.joint_positions)
 
     return 1
 
@@ -169,16 +190,17 @@ class teach_motions:
     for arm_index in range( 0, int(self.num_arms) ):
       rospy.loginfo ("Recording the pose for movegroup %s", self.movegroup_names[arm_index])
 
-      rospy.Subscriber(self.controller_topics[arm_index], JointTrajectoryControllerState, self.joint_state_cb, queue_size=1)
+      rospy.Subscriber(self.joints_topic, JointState, self.joint_state_cb, queue_size=1)
 
       # MoveIt setup
       group = moveit_commander.MoveGroupCommander(self.movegroup_names[arm_index])
 
       # Wait for an initial joint velocity msg to do initialization
-      rospy.wait_for_message(self.controller_topics[arm_index], JointTrajectoryControllerState)
+      rospy.wait_for_message(self.joints_topic, JointState)
       # Give the callback some time to populate these joint lists
       rospy.sleep(0.5)
-      self.prev_jts = self.joint_positions
+      # Initialize prev_jts
+      self.prev_jts = deepcopy(self.joint_positions)
 
       # Wait for the human to start moving the robot
       self.ini_pose.append( group.get_current_pose() )
@@ -230,7 +252,7 @@ class teach_motions:
       num_datapts = 0
 
       # Get an Euler velocity approximation
-      while ((not rospy.is_shutdown()) and self.check_nonzero_velocity(self.controller_topics[arm_index]) ):
+      while ((not rospy.is_shutdown()) and self.check_nonzero_velocity(arm_index) ):
         current_pose = group.get_current_pose()
 
         delta_t = rospy.Time.now().to_sec() - prev_time.to_sec()
