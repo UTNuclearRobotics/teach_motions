@@ -227,6 +227,7 @@ class teach_motions:
       rot_vector.header.frame_id = prev_pose.header.frame_id
       prev_time = rospy.Time.now()
       current_pose = group.get_current_pose()
+      num_datapts = 0
 
       # Get an Euler velocity approximation
       while ((not rospy.is_shutdown()) and self.check_nonzero_velocity(self.controller_topics[arm_index]) ):
@@ -290,8 +291,12 @@ class teach_motions:
           prev_time = rospy.Time.now()
 
         prev_pose = current_pose
+        num_datapts = num_datapts+1
         r.sleep()
 
+      if num_datapts < 5:
+        rospy.logerr('More than 5 datapts are needed. Try moving more slowly.')
+        sys.exit()
 
       # Write a final velocity of zero
       self.time_history.append( (rospy.Time.now()-start).to_sec() )

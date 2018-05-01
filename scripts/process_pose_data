@@ -217,16 +217,39 @@ class process_pose_data:
 
     if ratio > 1:
       faster_arm_index = 1
-      for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
-        # Lengthen each timestep
-        delta_t = ratio * float(self.incoming_times[faster_arm_index][i]) - float(t)
-        self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
     else:
       faster_arm_index = 0
-      for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
-        # Lengthen each timestep
-        delta_t = (1/ratio) * float(self.incoming_times[faster_arm_index][i]) - float(t)
-        self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+
+    # Lengthen each timestep
+    for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
+      delta_t = ratio * float(self.incoming_times[faster_arm_index][i]) - float(t)
+      self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+      
+    # Contract the velocities
+    for i, x in enumerate( self.incoming_x[faster_arm_index], start=0 ):
+      delta_x = ratio * float(self.incoming_x[faster_arm_index][i]) - float(x)
+      self.incoming_x[faster_arm_index][i] = str( float(x) + delta_x )
+
+    for i, y in enumerate( self.incoming_y[faster_arm_index], start=0 ):
+      delta_y = ratio * float(self.incoming_y[faster_arm_index][i]) - float(y)
+      self.incoming_y[faster_arm_index][i] = str( float(y) + delta_y )
+
+    for i, z in enumerate( self.incoming_z[faster_arm_index], start=0 ):
+      delta_z = ratio * float(self.incoming_z[faster_arm_index][i]) - float(z)
+      self.incoming_z[faster_arm_index][i] = str( float(z) + delta_z )
+
+    for i, roll in enumerate( self.wrapped_roll[faster_arm_index], start=0 ):
+      delta_roll = ratio * float(self.wrapped_roll[faster_arm_index][i]) - float(roll)
+      self.wrapped_roll[faster_arm_index][i] = str( float(roll) + delta_roll )
+
+    for i, pitch in enumerate( self.wrapped_pitch[faster_arm_index], start=0 ):
+      delta_pitch = ratio * float(self.wrapped_pitch[faster_arm_index][i]) - float(pitch)
+      self.wrapped_pitch[faster_arm_index][i] = str( float(pitch) + delta_pitch )
+
+    for i, yaw in enumerate( self.wrapped_yaw[faster_arm_index], start=0 ):
+      delta_yaw = ratio * float(self.wrapped_yaw[faster_arm_index][i]) - float(yaw)
+      self.wrapped_yaw[faster_arm_index][i] = str( float(yaw) + delta_yaw )
+
 
 
   def fit_splines(self):
