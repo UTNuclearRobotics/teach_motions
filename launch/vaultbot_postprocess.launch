@@ -1,0 +1,7 @@
+<launch>
+
+  <rosparam command="load" file="$(find teach_motions)/cfg/vaultbot.yaml" />
+
+  <node name="postprocess" pkg="teach_motions" type="process_pose_data" output="screen" />
+
+</launch>

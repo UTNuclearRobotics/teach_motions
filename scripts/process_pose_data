@@ -222,34 +222,33 @@ class process_pose_data:
 
     # Lengthen each timestep
     for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
-      delta_t = ratio * float(self.incoming_times[faster_arm_index][i]) - float(t)
+      delta_t = ratio * ( float(self.incoming_times[faster_arm_index][i]) - float(t) )
       self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
       
     # Contract the velocities
     for i, x in enumerate( self.incoming_x[faster_arm_index], start=0 ):
-      delta_x = (1/ratio) * float(self.incoming_x[faster_arm_index][i]) - float(x)
+      delta_x = (1/ratio) * ( float(self.incoming_x[faster_arm_index][i]) - float(x) )
       self.incoming_x[faster_arm_index][i] = str( float(x) + delta_x )
 
     for i, y in enumerate( self.incoming_y[faster_arm_index], start=0 ):
-      delta_y = (1/ratio) * float(self.incoming_y[faster_arm_index][i]) - float(y)
+      delta_y = (1/ratio) * ( float(self.incoming_y[faster_arm_index][i]) - float(y) )
       self.incoming_y[faster_arm_index][i] = str( float(y) + delta_y )
 
     for i, z in enumerate( self.incoming_z[faster_arm_index], start=0 ):
-      delta_z = (1/ratio) * float(self.incoming_z[faster_arm_index][i]) - float(z)
+      delta_z = (1/ratio) * ( float(self.incoming_z[faster_arm_index][i]) - float(z) )
       self.incoming_z[faster_arm_index][i] = str( float(z) + delta_z )
 
     for i, roll in enumerate( self.wrapped_roll[faster_arm_index], start=0 ):
-      delta_roll = (1/ratio) * float(self.wrapped_roll[faster_arm_index][i]) - float(roll)
+      delta_roll = (1/ratio) * ( float(self.wrapped_roll[faster_arm_index][i]) - float(roll) )
       self.wrapped_roll[faster_arm_index][i] = str( float(roll) + delta_roll )
 
     for i, pitch in enumerate( self.wrapped_pitch[faster_arm_index], start=0 ):
-      delta_pitch = (1/ratio) * float(self.wrapped_pitch[faster_arm_index][i]) - float(pitch)
+      delta_pitch = (1/ratio) * ( float(self.wrapped_pitch[faster_arm_index][i]) - float(pitch) )
       self.wrapped_pitch[faster_arm_index][i] = str( float(pitch) + delta_pitch )
 
     for i, yaw in enumerate( self.wrapped_yaw[faster_arm_index], start=0 ):
-      delta_yaw = (1/ratio) * float(self.wrapped_yaw[faster_arm_index][i]) - float(yaw)
+      delta_yaw = (1/ratio) * ( float(self.wrapped_yaw[faster_arm_index][i]) - float(yaw) )
       self.wrapped_yaw[faster_arm_index][i] = str( float(yaw) + delta_yaw )
-
 
 
   def fit_splines(self):
@@ -257,20 +256,21 @@ class process_pose_data:
     # Fit splines for one arm at a time
     # Differentiate the spline to calculate a velocity at a fixed timestep
     for arm_index in range( 0, int(self.num_arms) ):
-      x_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_x[arm_index], k=5)
+      # There's some extra BS here to convert to floats
+      x_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_x[arm_index], k=5)
 
-      y_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_y[arm_index], k=5)
+      y_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_y[arm_index], k=5)
 
-      z_dot = UnivariateSpline(self.incoming_times[arm_index], self.incoming_z[arm_index], k=5)
+      z_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_z[arm_index], k=5)
 
-      roll_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_roll[arm_index], k=5)
+      roll_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_roll[arm_index], k=5)
 
-      pitch_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_pitch[arm_index], k=5)
+      pitch_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_pitch[arm_index], k=5)
 
-      yaw_dot = UnivariateSpline(self.incoming_times[arm_index], self.wrapped_yaw[arm_index], k=5)
+      yaw_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_yaw[arm_index], k=5)
 
       # Fill the outgoing data lists with derivative approximations
-      self.outgoing_times = np.linspace(0, float(self.incoming_times[1][-1]), float(self.incoming_times[1][-1]) / self.interpolation_timestep )
+      self.outgoing_times = np.linspace(0, float(self.incoming_times[arm_index][-1]), float(self.incoming_times[arm_index][-1]) / self.interpolation_timestep )
       # Temporary list to hold a single column of data
       x_dot_this_arm = []
       y_dot_this_arm = []

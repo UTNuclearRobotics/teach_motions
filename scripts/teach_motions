@@ -204,9 +204,11 @@ class teach_motions:
 
       # Wait for the human to start moving the robot
       self.ini_pose.append( group.get_current_pose() )
-      linear_motion_threshold = 0.001  # Count as moving if motion is >this [m]
-      quat_motion_threshold = 0.001  # Count as moving if motion is >this [rad]
+      linear_motion_threshold = 0.1  # Count as moving if motion is >this [m]
+      quat_motion_threshold = 0.1  # Count as moving if motion is >this [rad]
       d = rospy.Duration(0.01, 0)
+      # Look for 2 consecutive motions as get_current_pose() can be flaky
+      i_saw_motion = 0
       while not rospy.is_shutdown():
         pose = group.get_current_pose()
         if (
@@ -218,6 +220,9 @@ class teach_motions:
           (abs(pose.pose.orientation.z-self.ini_pose[arm_index].pose.orientation.z) > quat_motion_threshold) or
           (abs(pose.pose.orientation.w-self.ini_pose[arm_index].pose.orientation.w) > quat_motion_threshold)
         ):
+          i_saw_motion = i_saw_motion + 1
+          print i_saw_motion
+        if i_saw_motion > 2:
           break
         rospy.sleep(d)
 
@@ -236,7 +241,7 @@ class teach_motions:
       # Record the EE velocity to datafile @ X Hz
       # Stop recording when EE velocities are ~zero again
       ###################################################
-      r = rospy.Rate(125)
+      r = rospy.Rate(5)
       start = rospy.Time.now()
       prev_pose = group.get_current_pose()
       # Preallocate variables in loop
