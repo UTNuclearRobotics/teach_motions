@@ -1,8 +1,8 @@
 jog_arm_server:
   simu: false # Whether the robot is started in simulation environment
   coll_check: false # Check collisions?
-  cmd_in_topic:  right_arm/jog_arm_server/delta_jog_cmds
-  cmd_frame:  base_link  # TF frame that incoming cmds are given in
+  cmd_in_topic:  jog_arm_server/right_arm/delta_jog_cmds
+  cmd_frame:  right_ur5_ee_link  # TF frame that incoming cmds are given in
   incoming_cmd_timeout:  5  # Stop jogging if X seconds elapse without a new cmd
   joint_topic:  joint_states
   move_group_name:  right_ur5
@@ -16,4 +16,4 @@ jog_arm_server:
     linear:  0.1  # Max linear velocity. Meters per pub_period. Units is [m/s]
     rotational:  0.1  # Max angular velocity. Rads per pub_period. Units is [rad/s]
   # Publish boolean warnings to this topic
-  warning_topic: jog_arm_server/warning
+  warning_topic: jog_arm_server/right_arm/warning

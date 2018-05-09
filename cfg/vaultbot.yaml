@@ -2,13 +2,13 @@
 teach_motions:
   output_tf_frame:  base_link  # Frame to save the recorded data in
   interpolation_timestep:  0.008  # 125 Hz
-  num_arms: 1 # 2
+  num_arms:  2
   joints_topic:  joint_states
   ee0:
     movegroup_name:  left_ur5
     ee_frame_name: left_ur5_ee_link
     jog_cmd_topic:  jog_arm_server/left_arm/delta_jog_cmds
-#  ee1:
-#    movegroup_name:  right_ur5
-#    ee_frame_name: right_ur5_ee_link
-#    jog_cmd_topic:  jog_arm_server/right_arm/delta_jog_cmds
+  ee1:
+    movegroup_name:  right_ur5
+    ee_frame_name: right_ur5_ee_link
+    jog_cmd_topic:  jog_arm_server/right_arm/delta_jog_cmds

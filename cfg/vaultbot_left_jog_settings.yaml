@@ -16,4 +16,4 @@ jog_arm_server:
     linear:  0.1  # Max linear velocity. Meters per pub_period. Units is [m/s]
     rotational:  0.1  # Max angular velocity. Rads per pub_period. Units is [rad/s]
   # Publish boolean warnings to this topic
-  warning_topic: jog_arm_server/warning
+  warning_topic: jog_arm_server/left_arm/warning

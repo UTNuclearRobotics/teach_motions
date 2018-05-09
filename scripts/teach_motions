@@ -74,7 +74,7 @@ class teach_motions:
     self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
     self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
     self.joint_positions = []
-    self.joint_difference_threshold = 0.000000001 # Count a jt difference >this as "in motion"
+    self.joint_difference_threshold = 0.000001 # Count a jt difference >this as "in motion"
     self.ini_pose = []
     self.joint_names = []
 
@@ -204,10 +204,10 @@ class teach_motions:
 
       # Wait for the human to start moving the robot
       self.ini_pose.append( group.get_current_pose() )
-      linear_motion_threshold = 0.1  # Count as moving if motion is >this [m]
-      quat_motion_threshold = 0.1  # Count as moving if motion is >this [rad]
+      linear_motion_threshold = 0.04  # Count as moving if motion is >this [m]
+      quat_motion_threshold = 0.02  # Count as moving if motion is >this [rad]
       d = rospy.Duration(0.01, 0)
-      # Look for 2 consecutive motions as get_current_pose() can be flaky
+      # Look for X consecutive motions as get_current_pose() can be flaky
       i_saw_motion = 0
       while not rospy.is_shutdown():
         pose = group.get_current_pose()
@@ -221,20 +221,24 @@ class teach_motions:
           (abs(pose.pose.orientation.w-self.ini_pose[arm_index].pose.orientation.w) > quat_motion_threshold)
         ):
           i_saw_motion = i_saw_motion + 1
-          print i_saw_motion
-        if i_saw_motion > 2:
+        if i_saw_motion > 3:
           break
         rospy.sleep(d)
 
-      # Write an initial velocity of zero
+      rospy.logerr('I saw motion!')
+
       start = rospy.Time.now()
-      self.time_history.append( (rospy.Time.now()-start).to_sec() )
-      self.x_dot_history.append( 0 )
-      self.y_dot_history.append( 0 )
-      self.z_dot_history.append( 0 )
-      self.roll_dot_history.append( 0 )
-      self.pitch_dot_history.append( 0 )
-      self.yaw_dot_history.append( 0 )
+
+      # Write a few initial velocities of zero
+      for i in range(0,5):
+        rospy.sleep(d)
+        self.time_history.append( (rospy.Time.now()-start).to_sec() )
+        self.x_dot_history.append( 0 )
+        self.y_dot_history.append( 0 )
+        self.z_dot_history.append( 0 )
+        self.roll_dot_history.append( 0 )
+        self.pitch_dot_history.append( 0 )
+        self.yaw_dot_history.append( 0 )
 
 
       ###################################################
@@ -242,7 +246,6 @@ class teach_motions:
       # Stop recording when EE velocities are ~zero again
       ###################################################
       r = rospy.Rate(5)
-      start = rospy.Time.now()
       prev_pose = group.get_current_pose()
       # Preallocate variables in loop
       q1_inv = tf.transformations.quaternion_from_euler(0,0,0)
@@ -259,7 +262,6 @@ class teach_motions:
       # Get an Euler velocity approximation
       while ((not rospy.is_shutdown()) and self.check_nonzero_velocity(arm_index) ):
         current_pose = group.get_current_pose()
-
         delta_t = rospy.Time.now().to_sec() - prev_time.to_sec()
 
         # Calculate the 'difference' from previous pose to current pose.
@@ -307,7 +309,7 @@ class teach_motions:
           abs(rot_vector.vector.x/delta_t) < 1 and
           abs(rot_vector.vector.y/delta_t) < 1 and
           abs(rot_vector.vector.z/delta_t) < 1
-        ):          
+        ):
           self.time_history.append( (rospy.Time.now()-start).to_sec() )
           self.x_dot_history.append( trans_vector.vector.x/delta_t )
           self.y_dot_history.append( trans_vector.vector.y/delta_t )
@@ -325,14 +327,18 @@ class teach_motions:
         rospy.logerr('More than 5 datapts are needed. Try moving more slowly.')
         sys.exit()
 
-      # Write a final velocity of zero
-      self.time_history.append( (rospy.Time.now()-start).to_sec() )
-      self.x_dot_history.append( 0 )
-      self.y_dot_history.append( 0 )
-      self.z_dot_history.append( 0 )
-      self.roll_dot_history.append( 0 )
-      self.pitch_dot_history.append( 0 )
-      self.yaw_dot_history.append( 0 )
+      # Write a few final velocities of zero
+      for i in range(0,5):
+        rospy.sleep(d)
+        self.time_history.append( (rospy.Time.now()-start).to_sec() )
+        self.x_dot_history.append( 0 )
+        self.y_dot_history.append( 0 )
+        self.z_dot_history.append( 0 )
+        self.roll_dot_history.append( 0 )
+        self.pitch_dot_history.append( 0 )
+        self.yaw_dot_history.append( 0 )
+
+      rospy.logerr('Motion has stopped.')
 
       self.save_to_csv(arm_index)
 

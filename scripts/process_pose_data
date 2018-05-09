@@ -302,27 +302,27 @@ class process_pose_data:
       t = np.linspace(0, float(self.incoming_times[arm_index][-1]), 100)
 
       plt.plot(t, x_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('x_dot')
+      plt.title('x_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
       plt.plot(t, y_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('y_dot')
+      plt.title('y_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
       plt.plot(t, z_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('z_dot')
+      plt.title('z_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
       plt.plot(t, roll_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('roll_dot')
+      plt.title('roll_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
       plt.plot(t, pitch_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('pitch_dot')
+      plt.title('pitch_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
       plt.plot(t, yaw_dot(t), 'g', lw=3, alpha=0.7)
-      plt.title('yaw_dot')
+      plt.title('yaw_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
 
   def save_data(self):
@@ -335,7 +335,7 @@ class process_pose_data:
         writer = csv.writer(csvfile)
 
         # Write column titles
-        writer.writerow(["Time", "x_dot", "y_dot", "z_dot", "roll_dot", "pitch_dot", "yaw_dot"])
+        writer.writerow(["Time", "x_dot [EE frame]", "y_dot [EE frame]", "z_dot [EE frame]", "roll_dot [EE frame]", "pitch_dot [EE frame]", "yaw_dot [EE frame]"])
         
         for t,x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot in zip( self.outgoing_times,
           self.outgoing_x_dot[arm_index],
