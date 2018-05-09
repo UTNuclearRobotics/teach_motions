@@ -5,7 +5,7 @@
 ###################################################################
 
 ###############################################################################
-#      Title     : read_and_send
+#      Title     : replay
 #      Project   : teach_motions
 #      Created   : 4/26/2018
 #      Author    : Andy Zelenak
@@ -43,11 +43,13 @@
 #   Publish with the right timestep.
 
 from geometry_msgs.msg import TwistStamped
+from std_msgs.msg import Bool
 
 import csv
 import moveit_commander
 import rospkg
 import rospy
+import sys
 import tf.transformations
 
 
@@ -57,6 +59,8 @@ class send_motions:
     self.movegroup_names = []
     self.jog_cmd_topics = []
     self.ee_frame_names = []
+
+    self.arm_is_halted = bool(False)
 
     # Store incoming data in these variables
     self.times = []
@@ -73,7 +77,15 @@ class send_motions:
     #######
     self.get_parameters()
     self.load_data()
+    self.setup_warning_subscriber()
     self.pub_cmds()
+
+  def setup_warning_subscriber(self):
+    self.arm_warning_sub = rospy.Subscriber("jog_arm_server/warning", Bool, self.arm_warning_cb)
+
+
+  def arm_warning_cb(self, msg):
+    self.arm_is_halted = True
 
 
   def get_parameters(self):
@@ -146,7 +158,8 @@ class send_motions:
     i = 0
     for i in range(0, len(self.x_dot[0] )) :
 
-      for arm_index in range( 0, int(self.num_arms) ):
+      for arm_index in range( 0, self.num_arms ):
+
 	    	# Fill in a TwistStamped msg from incoming data
       	ts.header.frame_id = self.ee_frame_names[arm_index]
       	ts.header.stamp = rospy.Time.now()
@@ -156,6 +169,22 @@ class send_motions:
       	ts.twist.angular.x = float( self.roll_dot[arm_index][i] )
       	ts.twist.angular.y = float( self.pitch_dot[arm_index][i] )
       	ts.twist.angular.z = float( self.yaw_dot[arm_index][i] )
+
+        # Check if an arm has been halted. Stop, if so.
+        if self.arm_is_halted:
+          ts.header.frame_id = self.ee_frame_names[arm_index]
+          ts.header.stamp = rospy.Time.now()
+          ts.twist.linear.x = 0
+          ts.twist.linear.y = 0
+          ts.twist.linear.z = 0
+          ts.twist.angular.x = 0
+          ts.twist.angular.y = 0
+          ts.twist.angular.z = 0
+
+          # Exit after halting all arms
+          if arm_index == self.num_arms-1:
+            rospy.logerr('An arm jogger was halted. Exiting')
+            sys.exit()
 
       	# Publish it
         cmd_publishers[arm_index].publish(ts)
@@ -193,6 +222,6 @@ class send_motions:
     
 
 if __name__ == '__main__':
-  rospy.init_node('read_and_send', anonymous=True)
+  rospy.init_node('replay', anonymous=True)
 
   sender = send_motions()

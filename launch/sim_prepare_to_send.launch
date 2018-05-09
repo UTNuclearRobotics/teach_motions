@@ -32,6 +32,6 @@
   <rosparam command="load" file="$(find teach_motions)/cfg/dual_arm_husky.yaml" />
 
   <!-- Typically run this separately after the jogging nodes have time to initialize -->
-<!--  <node name="read_and_send" pkg="teach_motions" type="read_and_send" output="screen" /> -->
+<!--  <node name="replay" pkg="teach_motions" type="replay" output="screen" /> -->
 
 </launch>
