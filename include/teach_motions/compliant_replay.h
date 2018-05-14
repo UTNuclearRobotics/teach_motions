@@ -54,7 +54,7 @@
 namespace compliant_replay
 {
 
-  // This class holds all of the data for the trajectory of one arm
+// This class holds all data for the trajectory of one arm
 class SingleArmData
 {
 public:
@@ -63,7 +63,9 @@ public:
   // Incoming trajectory data is stored in these vectors
   std::vector<double> times_, x_dot_, y_dot_, z_dot_, roll_dot_, pitch_dot_, yaw_dot_;
 
-  std::string frame_;
+  // TF frame of incoming jog cmds
+  // TODO: set to empty after testing
+  std::string frame_ = "l_ur5_arm_ee_link";
 
   // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
   std::vector<double> stiffness_{50, 50, 50, 50, 50, 50};
@@ -72,7 +74,7 @@ public:
   double filter_param_ = 10.;
 
   // Deadband for force/torque measurements
-  std::vector<double> deadband_ {10, 10, 10, 10, 10, 10};
+  std::vector<double> deadband_{10, 10, 10, 10, 10, 10};
 
   // Stop when any force exceeds X N, or torque exceeds X Nm
   std::vector<double> end_condition_wrench_{60, 60, 60, 60, 60, 60};
@@ -81,11 +83,14 @@ public:
   geometry_msgs::WrenchStamped ft_data_;
 
   // Topic from force/torque sensor
-  std::string ft_data_topic_;
+  std::string force_torque_data_topic_;
+
+  // Outgoing velocity msg
+  std::vector<double> velocity_out_{0, 0, 0, 0, 0, 0};
 };
 
 
-  // Send the compliant motion commands with this class
+// Send the compliant motion commands with this class
 class CompliantReplay
 {
 public:
@@ -95,8 +100,9 @@ private:
   // CB for halt warnings from the jog_arm nodes
   void haltCB(const std_msgs::Bool::ConstPtr& msg);
 
-  // CB for force/torque data
-  void ftCB(const geometry_msgs::WrenchStamped::ConstPtr& msg);
+  // CBs for force/torque data
+  void ftCB0(const geometry_msgs::WrenchStamped::ConstPtr& msg);
+  void ftCB1(const geometry_msgs::WrenchStamped::ConstPtr& msg);
 
   // Transform a wrench to the EE frame
   geometry_msgs::WrenchStamped transformToEEF(const geometry_msgs::WrenchStamped wrench_in,
@@ -114,15 +120,12 @@ private:
 
   ros::AsyncSpinner spinner_;
 
-  // Publish a velocity cmd to the jog_arm node
-  ros::Publisher vel_pub_;
-
-  ros::Subscriber jog_arm_warning_sub_, ft_sub_;
-
-  geometry_msgs::WrenchStamped ft_data_;
+  ros::Subscriber jog_arm_warning_sub_;
 
   // Did one of the jog nodes halt motion?
   bool jog_is_halted_ = false;
+  // Was a force/torque target achieved?
+  bool force_or_torque_limit_ = false;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -132,7 +135,16 @@ private:
   // Store the trajectory data for each arm
   std::vector<SingleArmData> arm_data_objects_;
 
+  // Compliance for each arm
   std::vector<compliant_control::CompliantControl> compliance_objects_;
+  std::vector<compliantEnum::exitCondition> compliance_status_;
+
+  // Subscribe to force/torque topics
+  // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
+  std::vector<ros::Subscriber> force_torque_subs_;
+
+  // Publish velocity cmd(s) to the jog_arm node(s)
+  std::vector<ros::Publisher> velocity_pubs_;
 };
 }  // end namespace compliant_replay
 

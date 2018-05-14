@@ -50,17 +50,8 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
 {
   spinner_.start();
 
-  // To publish commands to robots
-  vel_pub_ = n_.advertise<geometry_msgs::TwistStamped>("left_arm/jog_arm_server/delta_jog_cmds", 1);
-
   // Listen to the jog_arm warning topic. Exit if the jogger stops
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/halted", 1, &CompliantReplay::haltCB, this);
-
-  // Listen to wrench data from a force/torque sensor
-  ft_sub_ = n_.subscribe("left_ur5_wrench", 1, &CompliantReplay::ftCB, this);
-
-  // Sleep to allow the publishers to be created and FT data to stabilize
-  ros::Duration(2.).sleep();
 
   // Prompt user for datafile name
   ROS_INFO_NAMED("compliant_replay", "Enter the datafile name, e.g. 'handle7': ");
@@ -71,52 +62,58 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   // Read the 6 nominal velocity components from a datafile.
   readTraj();
 
-  // Wait for first force/torque data to arrive for each arm
-  for (int arm_index=0; arm_index<num_arms_; arm_index++)
-  {
-    ROS_INFO_STREAM("Waiting for first force/torque data on topic " << arm_data_objects_.at(arm_index).ft_data_topic_ );
-    while (ros::ok() && ft_data_.header.frame_id == "")
-      ros::Duration(0.1).sleep();
-    ROS_INFO_STREAM("Received initial FT data on topic " << arm_data_objects_.at(arm_index).ft_data_topic_ );
-  }
+  // TODO: calculate timestep from trajectory data
+  double avg_timestep = ( arm_data_objects_[0].times_.back()-arm_data_objects_[0].times_[0] ) / arm_data_objects_[0].times_.size();
+  ros::Rate rate(1/avg_timestep);
 
-/*
-  // The 6 velocity feedback components
-  std::vector<double> vel_out(6, 0.0);
+  // Store the outgoing Twist msg
   geometry_msgs::TwistStamped jog_cmd;
-  // Make sure this command frame matches what the jog_arm node expects
-  jog_cmd.header.frame_id = "left_ur5_ee_link";
 
-  // Get initial status
-  ft_data_ = transformToEEF(ft_data_, jog_cmd.header.frame_id);
-  compliantEnum::exitCondition compliance_condition = comp.getVelocity(vel_nom, ft_data_, vel_out);
+  int datapoint = 0;
+  std::vector<double> velocity_nominal{0., 0., 0., 0., 0., 0.}, velocity_out{0., 0., 0., 0., 0., 0.};
 
-  // Loop at X Hz. Specific frequency is not critical
-  ros::Rate rate(100.);
-
-  while (ros::ok() && !jog_is_halted_ && (compliance_condition == compliantEnum::CONDITION_NOT_MET))
+  while (ros::ok() && !jog_is_halted_ && !force_or_torque_limit_ && datapoint < arm_data_objects_[0].times_.size() )
   {
-    ft_data_ = transformToEEF(ft_data_, jog_cmd.header.frame_id);
-    compliance_condition = comp.getVelocity(vel_nom, ft_data_, vel_out);
+    // For each arm
+    for (int arm_index=0; arm_index<num_arms_; arm_index++)
+    {
+      arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_[arm_index].frame_);
 
-    // Send cmds to the robot(s)
-    jog_cmd.header.stamp = ros::Time::now();
-    jog_cmd.twist.linear.x = vel_out[0];
-    jog_cmd.twist.linear.y = vel_out[1];
-    jog_cmd.twist.linear.z = vel_out[2];
-    jog_cmd.twist.angular.x = vel_out[3];
-    jog_cmd.twist.angular.y = vel_out[4];
-    jog_cmd.twist.angular.z = vel_out[5];
+      // Read the next velocity datapoint
+      velocity_nominal[0] = arm_data_objects_.at(arm_index).x_dot_[datapoint];
+      velocity_nominal[1] = arm_data_objects_.at(arm_index).y_dot_[datapoint];
+      velocity_nominal[2] = arm_data_objects_.at(arm_index).z_dot_[datapoint];
+      velocity_nominal[3] = arm_data_objects_.at(arm_index).roll_dot_[datapoint];
+      velocity_nominal[4] = arm_data_objects_.at(arm_index).pitch_dot_[datapoint];
+      velocity_nominal[5] = arm_data_objects_.at(arm_index).yaw_dot_[datapoint];
 
-    vel_pub_.publish(jog_cmd);
+      // Add the compliance velocity to nominal velocity, and check for force/torque limits
+      compliance_status_[arm_index] = compliance_objects_[arm_index].getVelocity(velocity_nominal, arm_data_objects_[arm_index].ft_data_, velocity_out);
 
+      // Send cmds to the robot(s)
+      jog_cmd.header.frame_id = arm_data_objects_[arm_index].frame_;
+      jog_cmd.header.stamp = ros::Time::now();
+      jog_cmd.twist.linear.x = velocity_out[0];
+      jog_cmd.twist.linear.y = velocity_out[1];
+      jog_cmd.twist.linear.z = velocity_out[2];
+      jog_cmd.twist.angular.x = velocity_out[3];
+      jog_cmd.twist.angular.y = velocity_out[4];
+      jog_cmd.twist.angular.z = velocity_out[5];
+
+      velocity_pubs_[arm_index].publish(jog_cmd);
+
+      // Set the flag if a force or torque limit is reached
+      if ( compliance_status_[arm_index] == compliantEnum::CONDITION_MET )
+        force_or_torque_limit_ = true;
+    }
+
+    datapoint++;
     rate.sleep();
   }
 
   if (jog_is_halted_)
-    ROS_WARN_NAMED("compliant_replay", "Jogging was halted. Singularity, jt "
+    ROS_WARN_NAMED("compliant_replay", "Jogging was halted. Singularity, joint "
                                       "limit, or collision?");
-*/
 }
 
 // CB for halt warnings from the jog_arm nodes
@@ -125,27 +122,85 @@ void compliant_replay::CompliantReplay::haltCB(const std_msgs::Bool::ConstPtr& m
   jog_is_halted_ = msg->data;
 }
 
-// CB for force/torque data
-void compliant_replay::CompliantReplay::ftCB(const geometry_msgs::WrenchStamped::ConstPtr& msg)
+// CB for force/torque data of arm0
+void compliant_replay::CompliantReplay::ftCB0(const geometry_msgs::WrenchStamped::ConstPtr& msg)
 {
-  ft_data_ = *msg;
-  ft_data_.header.frame_id = "left_ur5_base";
+  arm_data_objects_[0].ft_data_ = *msg;
+  arm_data_objects_[0].ft_data_.header.frame_id = arm_data_objects_.at(0).frame_;
+}
+
+// CB for force/torque data of arm1
+void compliant_replay::CompliantReplay::ftCB1(const geometry_msgs::WrenchStamped::ConstPtr& msg)
+{
+  arm_data_objects_[1].ft_data_ = *msg;
+  arm_data_objects_[1].ft_data_.header.frame_id = arm_data_objects_.at(1).frame_;
 }
 
 void compliant_replay::CompliantReplay::setup()
 {
   num_arms_ = get_ros_params::getIntParam("teach_motions/num_arms", n_);
 
-  // Set up vectors to hold data for each arm
+  // Set up vectors to hold data/objects for each arm
   for (int arm_index=0; arm_index<num_arms_; arm_index++)
   {
     arm_data_objects_.push_back( SingleArmData() );
     arm_data_objects_.at(arm_index).frame_ = get_ros_params::getStringParam("teach_motions/ee" + std::to_string(arm_index) + "/ee_frame_name", n_);
 
+    // Force/torque data topics to subscribe to.
+    // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
+    arm_data_objects_.at(arm_index).force_torque_data_topic_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/ft_topic", n_);
+
+    if (arm_index == 0)
+    {
+      // Listen to wrench data from a force/torque sensor.
+      ros::Subscriber sub0 = n_.subscribe(
+        arm_data_objects_.at(arm_index).force_torque_data_topic_,
+        1,
+        &CompliantReplay::ftCB0,
+        this);
+
+      force_torque_subs_.push_back(sub0);
+    }
+
+    if (arm_index == 1)
+    {
+      // Listen to wrench data from a force/torque sensor.
+      // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
+      ros::Subscriber sub1 = n_.subscribe(
+        arm_data_objects_.at(arm_index).force_torque_data_topic_,
+        1,
+        &CompliantReplay::ftCB1,
+        this);
+
+      force_torque_subs_.push_back(sub1);
+    }
+
+    // To publish commands to robots
+    ros::Publisher pub = n_.advertise<geometry_msgs::TwistStamped>(
+      get_ros_params::getStringParam("teach_motions/ee" + std::to_string(arm_index) + "/jog_cmd_topic", n_),
+      1);
+    velocity_pubs_.push_back( pub );
+
+    // Initially, have not achieved the desired force/torque, so enable compliant motion.
+    compliance_status_.push_back( compliantEnum::CONDITION_NOT_MET );
+
     // Customize the compliance parameters
     arm_data_objects_.at(arm_index).setComplianceParams();
 
+    // Wait for first force/torque data to arrive for this arm
+    // TODO: revert this after testing is complete
+    arm_data_objects_.at(arm_index).ft_data_.header.frame_id = "l_ur5_arm_ee_link";
+/*
+    ROS_INFO_STREAM("Waiting for first force/torque data on topic " << arm_data_objects_.at(arm_index).force_torque_data_topic_ );
+    while (ros::ok() && arm_data_objects_.at(arm_index).ft_data_.header.frame_id == "")
+      ros::Duration(0.1).sleep();
+    ROS_INFO_STREAM("Received initial FT data on topic " << arm_data_objects_.at(arm_index).force_torque_data_topic_ );
+*/
+
     // Create a vector of compliance objects from the CompliantControl library
+    // The initial force/torque reading is taken as the bias.
+    arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_.at(arm_index).frame_);
+
     compliance_objects_.push_back( compliant_control::CompliantControl(
       arm_data_objects_.at(arm_index).stiffness_,
       arm_data_objects_.at(arm_index).deadband_,
@@ -155,10 +210,10 @@ void compliant_replay::CompliantReplay::setup()
       100.,
       50.
       ) );
-
-    // Force/torque data topics to subscribe to
-    arm_data_objects_.at(arm_index).ft_data_topic_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/ft_topic", n_);
   }
+
+  // Sleep to allow the publishers to be created and FT data to stabilize
+  ros::Duration(2.).sleep();
 }
 
 void compliant_replay::CompliantReplay::readTraj()
