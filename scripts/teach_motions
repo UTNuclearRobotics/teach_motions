@@ -74,7 +74,7 @@ class teach_motions:
     self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
     self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
     self.joint_positions = []
-    self.joint_difference_threshold = 0.000001 # Count a jt difference >this as "in motion"
+    self.joint_difference_threshold = 0.0001 # Count a jt difference >this as "in motion"
     self.ini_pose = []
     self.joint_names = []
 
@@ -165,9 +165,6 @@ class teach_motions:
       rospy.wait_for_message(self.joints_topic, JointState)
       rospy.wait_for_message(self.joints_topic, JointState)
       rospy.wait_for_message(self.joints_topic, JointState)
-      rospy.wait_for_message(self.joints_topic, JointState)
-      rospy.wait_for_message(self.joints_topic, JointState)
-      rospy.wait_for_message(self.joints_topic, JointState)
 
       # Do the calcs again with the fresh joint message
       avg_jt_diff = 0
@@ -202,9 +199,12 @@ class teach_motions:
       # Initialize prev_jts
       self.prev_jts = deepcopy(self.joint_positions)
 
+      # Sometimes the initial get_current_pose returns garbage. Flush it out.
+      group.get_current_pose()
+
       # Wait for the human to start moving the robot
       self.ini_pose.append( group.get_current_pose() )
-      linear_motion_threshold = 0.04  # Count as moving if motion is >this [m]
+      linear_motion_threshold = 0.01  # Count as moving if motion is >this [m]
       quat_motion_threshold = 0.02  # Count as moving if motion is >this [rad]
       d = rospy.Duration(0.01, 0)
       # Look for X consecutive motions as get_current_pose() can be flaky

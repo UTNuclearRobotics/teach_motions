@@ -171,20 +171,20 @@ class send_motions:
       	ts.twist.angular.z = float( self.yaw_dot[arm_index][i] )
 
         # Check if an arm has been halted. Stop, if so.
-        if self.arm_is_halted:
-          ts.header.frame_id = self.ee_frame_names[arm_index]
-          ts.header.stamp = rospy.Time.now()
-          ts.twist.linear.x = 0
-          ts.twist.linear.y = 0
-          ts.twist.linear.z = 0
-          ts.twist.angular.x = 0
-          ts.twist.angular.y = 0
-          ts.twist.angular.z = 0
+        # if self.arm_is_halted:
+        #   ts.header.frame_id = self.ee_frame_names[arm_index]
+        #   ts.header.stamp = rospy.Time.now()
+        #   ts.twist.linear.x = 0
+        #   ts.twist.linear.y = 0
+        #   ts.twist.linear.z = 0
+        #   ts.twist.angular.x = 0
+        #   ts.twist.angular.y = 0
+        #   ts.twist.angular.z = 0
 
-          # Exit after halting all arms
-          if arm_index == self.num_arms-1:
-            rospy.logerr('An arm jogger was halted. Exiting')
-            sys.exit()
+        #   # Exit after halting all arms
+        #   if arm_index == self.num_arms-1:
+        #     rospy.logerr('An arm jogger was halted. Exiting')
+        #     sys.exit()
 
       	# Publish it
         cmd_publishers[arm_index].publish(ts)
