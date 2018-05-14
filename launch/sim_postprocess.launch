@@ -1,6 +1,6 @@
 <launch>
 
-  <rosparam command="load" file="$(find teach_motions)/cfg/dual_arm_husky.yaml" />
+  <rosparam command="load" file="$(find teach_motions)/cfg/sim.yaml" />
 
   <node name="postprocess" pkg="teach_motions" type="process_pose_data" output="screen" />
 

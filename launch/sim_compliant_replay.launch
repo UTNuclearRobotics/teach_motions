@@ -1,0 +1,7 @@
+<launch>
+
+  <rosparam command="load" file="$(find teach_motions)/cfg/sim.yaml" />
+
+  <node name="compliant_replay" pkg="teach_motions" type="compliant_replay" output="screen" />
+
+</launch>

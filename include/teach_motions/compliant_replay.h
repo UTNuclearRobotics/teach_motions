@@ -45,6 +45,7 @@
 #include <jog_arm/compliant_control.h>
 #include <fstream>
 #include <iostream>
+#include <ros/package.h>
 #include <ros/ros.h>
 #include <teach_motions/get_ros_params.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -52,6 +53,39 @@
 
 namespace compliant_replay
 {
+
+  // This class holds all of the data for the trajectory of one arm
+class SingleArmData
+{
+public:
+  void setComplianceParams();
+
+  // Incoming trajectory data is stored in these vectors
+  std::vector<double> times_, x_dot_, y_dot_, z_dot_, roll_dot_, pitch_dot_, yaw_dot_;
+
+  std::string frame_;
+
+  // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
+  std::vector<double> stiffness_{50, 50, 50, 50, 50, 50};
+
+  // Related to the cutoff frequency of the low-pass filter.
+  double filter_param_ = 10.;
+
+  // Deadband for force/torque measurements
+  std::vector<double> deadband_ {10, 10, 10, 10, 10, 10};
+
+  // Stop when any force exceeds X N, or torque exceeds X Nm
+  std::vector<double> end_condition_wrench_{60, 60, 60, 60, 60, 60};
+
+  // Current force/torque data
+  geometry_msgs::WrenchStamped ft_data_;
+
+  // Topic from force/torque sensor
+  std::string ft_data_topic_;
+};
+
+
+  // Send the compliant motion commands with this class
 class CompliantReplay
 {
 public:
@@ -68,13 +102,13 @@ private:
   geometry_msgs::WrenchStamped transformToEEF(const geometry_msgs::WrenchStamped wrench_in,
                                               const std::string desired_ee_frame);
 
-  // Read configuration parameters
-  void getParameters();
-  // These parameters come from the yaml file:
-  int num_arms_ = 1;
+  // Read configuration parameters and setup vectors
+  void setup();
 
   // Read trajectories from csv datafile
   void readTraj();
+
+  int num_arms_ = 1;
 
   ros::NodeHandle n_;
 
@@ -95,10 +129,11 @@ private:
 
   std::string datafile_;
 
-  // Incoming trajectory data is stored in these vectors
-  std::vector< std::vector<double> > times_, x_dot_, y_dot_, z_dot_, roll_dot_, pitch_dot_, yaw_dot_;
-};
+  // Store the trajectory data for each arm
+  std::vector<SingleArmData> arm_data_objects_;
 
+  std::vector<compliant_control::CompliantControl> compliance_objects_;
+};
 }  // end namespace compliant_replay
 
 #endif

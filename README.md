@@ -14,4 +14,4 @@ roslaunch teach_motions prepare_to_send_cmds.launch
 
 Finally, actually send the recorded trajectories to robot(s):
 
-rosrun teach_motions replay
+roslaunch teach_motions compliant_replay.launch

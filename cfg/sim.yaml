@@ -12,3 +12,9 @@ teach_motions:
     movegroup_name:  right_arm
     ee_frame_name: r_ur5_arm_ee_link
     jog_cmd_topic:  jog_arm_server/right_arm/delta_jog_cmds
+
+compliant_replay:
+  ee0:
+    ft_topic:  left_ur5_wrench
+  ee1:
+    ft_topic:  right_ur5_wrench

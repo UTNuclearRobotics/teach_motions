@@ -29,7 +29,7 @@
   <!-- Read the datafiles and send jogging messages -->
   <!--                                              -->
 
-  <rosparam command="load" file="$(find teach_motions)/cfg/dual_arm_husky.yaml" />
+  <rosparam command="load" file="$(find teach_motions)/cfg/sim.yaml" />
 
   <!-- Typically run this separately after the jogging nodes have time to initialize -->
 <!--  <node name="replay" pkg="teach_motions" type="replay" output="screen" /> -->

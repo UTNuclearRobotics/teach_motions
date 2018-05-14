@@ -59,14 +59,6 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   // Listen to wrench data from a force/torque sensor
   ft_sub_ = n_.subscribe("left_ur5_wrench", 1, &CompliantReplay::ftCB, this);
 
-  // Wait for first ft data to arrive
-/*
-  ROS_INFO_NAMED("compliant_replay", "Waiting for first force/torque data.");
-  while (ros::ok() && ft_data_.header.frame_id == "")
-    ros::Duration(0.1).sleep();
-  ROS_INFO_NAMED("compliant_replay", "Received initial FT data.");
-*/
-
   // Sleep to allow the publishers to be created and FT data to stabilize
   ros::Duration(2.).sleep();
 
@@ -74,38 +66,21 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   ROS_INFO_NAMED("compliant_replay", "Enter the datafile name, e.g. 'handle7': ");
   std::cin >> datafile_;
 
-  getParameters();
+  setup();
 
-  // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
-  // TODO: read this from datafile
-  std::vector<double> stiffness(6, 50.);
-  // Rotational components
-  stiffness[3] = 200.;
-  stiffness[4] = 200.;
-  stiffness[5] = 200.;
-
-
-  double filterParam = 10.;
-
-  // Deadband for force/torque measurements
-  std::vector<double> deadband(6, 10.);
-
-  // Stop when any force exceeds X N, or torque exceeds X Nm
-  std::vector<double> endConditionWrench(6, 60.0);
-
-  // An object for compliant control
-  compliant_control::CompliantControl comp(stiffness, 
-    deadband, 
-    endConditionWrench, 
-    filterParam, 
-    ft_data_, 
-    100., 
-    50.);
-
-  // The 6 nominal velocity components.
-  std::vector<double> vel_nom(6, 0.0);
+  // Read the 6 nominal velocity components from a datafile.
   readTraj();
 
+  // Wait for first force/torque data to arrive for each arm
+  for (int arm_index=0; arm_index<num_arms_; arm_index++)
+  {
+    ROS_INFO_STREAM("Waiting for first force/torque data on topic " << arm_data_objects_.at(arm_index).ft_data_topic_ );
+    while (ros::ok() && ft_data_.header.frame_id == "")
+      ros::Duration(0.1).sleep();
+    ROS_INFO_STREAM("Received initial FT data on topic " << arm_data_objects_.at(arm_index).ft_data_topic_ );
+  }
+
+/*
   // The 6 velocity feedback components
   std::vector<double> vel_out(6, 0.0);
   geometry_msgs::TwistStamped jog_cmd;
@@ -119,7 +94,6 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   // Loop at X Hz. Specific frequency is not critical
   ros::Rate rate(100.);
 
-/*
   while (ros::ok() && !jog_is_halted_ && (compliance_condition == compliantEnum::CONDITION_NOT_MET))
   {
     ft_data_ = transformToEEF(ft_data_, jog_cmd.header.frame_id);
@@ -158,23 +132,47 @@ void compliant_replay::CompliantReplay::ftCB(const geometry_msgs::WrenchStamped:
   ft_data_.header.frame_id = "left_ur5_base";
 }
 
-void compliant_replay::CompliantReplay::getParameters()
+void compliant_replay::CompliantReplay::setup()
 {
   num_arms_ = get_ros_params::getIntParam("teach_motions/num_arms", n_);
+
+  // Set up vectors to hold data for each arm
+  for (int arm_index=0; arm_index<num_arms_; arm_index++)
+  {
+    arm_data_objects_.push_back( SingleArmData() );
+    arm_data_objects_.at(arm_index).frame_ = get_ros_params::getStringParam("teach_motions/ee" + std::to_string(arm_index) + "/ee_frame_name", n_);
+
+    // Customize the compliance parameters
+    arm_data_objects_.at(arm_index).setComplianceParams();
+
+    // Create a vector of compliance objects from the CompliantControl library
+    compliance_objects_.push_back( compliant_control::CompliantControl(
+      arm_data_objects_.at(arm_index).stiffness_,
+      arm_data_objects_.at(arm_index).deadband_,
+      arm_data_objects_.at(arm_index).end_condition_wrench_,
+      arm_data_objects_.at(arm_index).filter_param_,
+      arm_data_objects_.at(arm_index).ft_data_,
+      100.,
+      50.
+      ) );
+
+    // Force/torque data topics to subscribe to
+    arm_data_objects_.at(arm_index).ft_data_topic_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/ft_topic", n_);
+  }
 }
 
 void compliant_replay::CompliantReplay::readTraj()
 {
-  std::ifstream file("/home/nrgadmin/vaultbot-nrg/src/components/teach_motions/data/handle7_arm0_processed.csv");
+  std::string path = ros::package::getPath("teach_motions");
+
   std::string line;
   std::string value;
 
-  // Temporarily hold a single arm's data
-  std::vector<double> time, x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot;
-
   // Read vectors for each arm
-  for (int i=0; i<num_arms_; i++)
+  for (int arm_index=0; arm_index<num_arms_; arm_index++)
   {
+    std::ifstream file( path + "/data/handle7_arm" + std::to_string(arm_index) + "_processed.csv" );
+
     // Ignore the first line (headers)
     getline( file, line);
 
@@ -189,51 +187,31 @@ void compliant_replay::CompliantReplay::readTraj()
       getline(ss, value, ',');
       if (value != "")  // Check for end of file
       {
-        ROS_WARN_STREAM(value);
-        time.push_back( std::stod(value) );
+        // Push one value in at a time
+        arm_data_objects_.at(arm_index).times_.push_back( std::stod(value) );
 
         getline(ss, value, ',');
-        x_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).x_dot_.push_back( std::stod(value) );
 
         getline(ss, value, ',');
-        y_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).y_dot_.push_back( std::stod(value) );
 
         getline(ss, value, ',');
-        z_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).z_dot_.push_back( std::stod(value) );
 
         getline(ss, value, ',');
-        roll_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).roll_dot_.push_back( std::stod(value) );
 
         getline(ss, value, ',');
-        pitch_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).pitch_dot_.push_back( std::stod(value) );
 
         getline(ss, value, '\n');
-        yaw_dot.push_back( std::stod(value) );
+        arm_data_objects_.at(arm_index).yaw_dot_.push_back( std::stod(value) );
       }
     }
-
-    // Push this arm vector into the member variable for all arms.
-    // For example, times for arm0 are stored in times[0]
-    // First sample time for arm0 is at times[0][0]
-    times_.push_back(time);
-    x_dot_.push_back(x_dot);
-    y_dot_.push_back(y_dot);
-    z_dot_.push_back(z_dot);
-    roll_dot_.push_back(roll_dot);
-    pitch_dot_.push_back(pitch_dot);
-    yaw_dot_.push_back(yaw_dot);
   }
 
-  // Debugging:
-  ROS_WARN_STREAM(times_[0][0]);
-  ROS_WARN_STREAM(times_[1][0]);
-  ROS_WARN_STREAM(times_[0].back());
-  ROS_WARN_STREAM(times_[1].back());
-
-  ROS_ERROR_STREAM(yaw_dot_[0][0]);
-  ROS_ERROR_STREAM(yaw_dot_[1][0]);
-  ROS_ERROR_STREAM(yaw_dot_[0].back());
-  ROS_ERROR_STREAM(yaw_dot_[1].back());
+  ROS_INFO_STREAM_NAMED("compliant_replay", "Done reading datafiles for all arms.");
 }
 
 // Transform a wrench to the EE frame
@@ -265,4 +243,13 @@ geometry_msgs::WrenchStamped compliant_replay::CompliantReplay::transformToEEF(
   wrench_out.wrench.torque = torque_vector.vector;
 
   return wrench_out;
+}
+
+void compliant_replay::SingleArmData::setComplianceParams()
+{
+  // TODO: read stiffness from datafile
+  // Rotational components
+  stiffness_[3] = 200.;
+  stiffness_[4] = 200.;
+  stiffness_[5] = 200.;
 }
