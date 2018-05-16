@@ -62,7 +62,6 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   // Read the 6 nominal velocity components from a datafile.
   readTraj();
 
-  // TODO: calculate timestep from trajectory data
   double avg_timestep = ( arm_data_objects_[0].times_.back()-arm_data_objects_[0].times_[0] ) / arm_data_objects_[0].times_.size();
   ros::Rate rate(1/avg_timestep);
 
@@ -77,7 +76,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
     // For each arm
     for (int arm_index=0; arm_index<num_arms_; arm_index++)
     {
-      arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_[arm_index].frame_);
+      arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_[arm_index].jog_command_frame_);
 
       // Read the next velocity datapoint
       velocity_nominal[0] = arm_data_objects_.at(arm_index).x_dot_[datapoint];
@@ -91,14 +90,15 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
       compliance_status_[arm_index] = compliance_objects_[arm_index].getVelocity(velocity_nominal, arm_data_objects_[arm_index].ft_data_, velocity_out);
 
       // Send cmds to the robot(s)
-      jog_cmd.header.frame_id = arm_data_objects_[arm_index].frame_;
+      jog_cmd.header.frame_id = arm_data_objects_[arm_index].jog_command_frame_;
       jog_cmd.header.stamp = ros::Time::now();
-      jog_cmd.twist.linear.x = velocity_out[0];
-      jog_cmd.twist.linear.y = velocity_out[1];
-      jog_cmd.twist.linear.z = velocity_out[2];
-      jog_cmd.twist.angular.x = velocity_out[3];
-      jog_cmd.twist.angular.y = velocity_out[4];
-      jog_cmd.twist.angular.z = velocity_out[5];
+      // TODO: this should be velocity_out, not velocity_nominal:
+      jog_cmd.twist.linear.x = velocity_nominal[0];
+      jog_cmd.twist.linear.y = velocity_nominal[1];
+      jog_cmd.twist.linear.z = velocity_nominal[2];
+      jog_cmd.twist.angular.x = velocity_nominal[3];
+      jog_cmd.twist.angular.y = velocity_nominal[4];
+      jog_cmd.twist.angular.z = velocity_nominal[5];
 
       velocity_pubs_[arm_index].publish(jog_cmd);
 
@@ -126,14 +126,14 @@ void compliant_replay::CompliantReplay::haltCB(const std_msgs::Bool::ConstPtr& m
 void compliant_replay::CompliantReplay::ftCB0(const geometry_msgs::WrenchStamped::ConstPtr& msg)
 {
   arm_data_objects_[0].ft_data_ = *msg;
-  arm_data_objects_[0].ft_data_.header.frame_id = arm_data_objects_.at(0).frame_;
+  arm_data_objects_[0].ft_data_.header.frame_id = arm_data_objects_.at(0).force_torque_frame_;
 }
 
 // CB for force/torque data of arm1
 void compliant_replay::CompliantReplay::ftCB1(const geometry_msgs::WrenchStamped::ConstPtr& msg)
 {
   arm_data_objects_[1].ft_data_ = *msg;
-  arm_data_objects_[1].ft_data_.header.frame_id = arm_data_objects_.at(1).frame_;
+  arm_data_objects_[1].ft_data_.header.frame_id = arm_data_objects_.at(1).force_torque_frame_;
 }
 
 void compliant_replay::CompliantReplay::setup()
@@ -144,15 +144,17 @@ void compliant_replay::CompliantReplay::setup()
   for (int arm_index=0; arm_index<num_arms_; arm_index++)
   {
     arm_data_objects_.push_back( SingleArmData() );
-    arm_data_objects_.at(arm_index).frame_ = get_ros_params::getStringParam("teach_motions/ee" + std::to_string(arm_index) + "/ee_frame_name", n_);
+    arm_data_objects_.at(arm_index).jog_command_frame_ = get_ros_params::getStringParam("teach_motions/ee" + std::to_string(arm_index) + "/ee_frame_name", n_);
+    arm_data_objects_.at(arm_index).force_torque_frame_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/force_torque_frame", n_);
 
     // Force/torque data topics to subscribe to.
     // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
-    arm_data_objects_.at(arm_index).force_torque_data_topic_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/ft_topic", n_);
+    arm_data_objects_.at(arm_index).force_torque_data_topic_ = get_ros_params::getStringParam("compliant_replay/ee" + std::to_string(arm_index) + "/force_torque_topic", n_);
 
+    // Listen to wrench data from a force/torque sensor.
+    // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
     if (arm_index == 0)
     {
-      // Listen to wrench data from a force/torque sensor.
       ros::Subscriber sub0 = n_.subscribe(
         arm_data_objects_.at(arm_index).force_torque_data_topic_,
         1,
@@ -164,8 +166,6 @@ void compliant_replay::CompliantReplay::setup()
 
     if (arm_index == 1)
     {
-      // Listen to wrench data from a force/torque sensor.
-      // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
       ros::Subscriber sub1 = n_.subscribe(
         arm_data_objects_.at(arm_index).force_torque_data_topic_,
         1,
@@ -188,18 +188,14 @@ void compliant_replay::CompliantReplay::setup()
     arm_data_objects_.at(arm_index).setComplianceParams();
 
     // Wait for first force/torque data to arrive for this arm
-    // TODO: revert this after testing is complete
-    arm_data_objects_.at(arm_index).ft_data_.header.frame_id = "l_ur5_arm_ee_link";
-/*
     ROS_INFO_STREAM("Waiting for first force/torque data on topic " << arm_data_objects_.at(arm_index).force_torque_data_topic_ );
     while (ros::ok() && arm_data_objects_.at(arm_index).ft_data_.header.frame_id == "")
       ros::Duration(0.1).sleep();
     ROS_INFO_STREAM("Received initial FT data on topic " << arm_data_objects_.at(arm_index).force_torque_data_topic_ );
-*/
 
     // Create a vector of compliance objects from the CompliantControl library
     // The initial force/torque reading is taken as the bias.
-    arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_.at(arm_index).frame_);
+    arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_.at(arm_index).jog_command_frame_);
 
     compliance_objects_.push_back( compliant_control::CompliantControl(
       arm_data_objects_.at(arm_index).stiffness_,
@@ -303,8 +299,4 @@ geometry_msgs::WrenchStamped compliant_replay::CompliantReplay::transformToEEF(
 void compliant_replay::SingleArmData::setComplianceParams()
 {
   // TODO: read stiffness from datafile
-  // Rotational components
-  stiffness_[3] = 200.;
-  stiffness_[4] = 200.;
-  stiffness_[5] = 200.;
 }

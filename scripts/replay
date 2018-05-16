@@ -211,6 +211,7 @@ class send_motions:
       # Print useful info
       rospy.loginfo("--------------------------------------------------------")
       rospy.loginfo("Change in pose in " + final_pose.header.frame_id + ": ")
+      rospy.logerr( "Note, there are often tf errors here. Cannot be completely trusted." )
       rospy.loginfo("X: " + str( final_pose.pose.position.x - self.ini_pose[arm_index].pose.position.x ))
       rospy.loginfo("Y: " + str( final_pose.pose.position.y - self.ini_pose[arm_index].pose.position.y ))
       rospy.loginfo("Z: " + str( final_pose.pose.position.z - self.ini_pose[arm_index].pose.position.z ))

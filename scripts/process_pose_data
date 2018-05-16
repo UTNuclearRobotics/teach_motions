@@ -107,6 +107,8 @@ class process_pose_data:
 
     self.interpolation_timestep = float( rospy.get_param("teach_motions/interpolation_timestep") )
 
+    self.teach_mode_velocity_scale = float( rospy.get_param("teach_motions/teach_mode_velocity_scale") )
+
     for arm_index in range( 0, int(self.num_arms) ):
       param_string = "teach_motions/ee" + str(arm_index) + "/movegroup_name"
       self.movegroup_names.append( rospy.get_param(param_string) )
@@ -211,43 +213,56 @@ class process_pose_data:
     print ratio
     print ''
 
-    # Lengthen all timesteps in whichever trajectory was faster
+    # Lengthen all timesteps in whichever trajectory was shorter (in duration)
     # (could do it the other way around, but that would speed up the arm's trajectory)
     # (--> potentially dangerous)
 
     if ratio > 1:
       faster_arm_index = 1
+      # Make this ratio <1 for all future calcs
+      ratio = 1/ratio
     else:
       faster_arm_index = 0
 
-    # Lengthen each timestep
+    # Lengthen each timestep to make the faster trajectory match slower.
     for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
       delta_t = ratio * ( float(self.incoming_times[faster_arm_index][i]) - float(t) )
       self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+
+    rospy.logwarn( self.incoming_times[0] )
+
+    # Modify each timestep to apply teach_mode_velocity_scale...
+    # user may want the robot to move faster or slower than they could teach it.
+    # for arm_index in range( 0, int(self.num_arms) ):
+    #   for i, t in enumerate( self.incoming_times[arm_index], start=0 ):
+    #     delta_t = self.teach_mode_velocity_scale * ( float(self.incoming_times[arm_index][i]) - float(t) )
+    #     self.incoming_times[arm_index][i] = str( float(t) + delta_t )
+
+    # rospy.logerr( self.incoming_times[0] )
       
     # Contract the velocities
     for i, x in enumerate( self.incoming_x[faster_arm_index], start=0 ):
-      delta_x = (1/ratio) * ( float(self.incoming_x[faster_arm_index][i]) - float(x) )
+      delta_x = ratio * ( float(self.incoming_x[faster_arm_index][i]) - float(x) )
       self.incoming_x[faster_arm_index][i] = str( float(x) + delta_x )
 
     for i, y in enumerate( self.incoming_y[faster_arm_index], start=0 ):
-      delta_y = (1/ratio) * ( float(self.incoming_y[faster_arm_index][i]) - float(y) )
+      delta_y = ratio * ( float(self.incoming_y[faster_arm_index][i]) - float(y) )
       self.incoming_y[faster_arm_index][i] = str( float(y) + delta_y )
 
     for i, z in enumerate( self.incoming_z[faster_arm_index], start=0 ):
-      delta_z = (1/ratio) * ( float(self.incoming_z[faster_arm_index][i]) - float(z) )
+      delta_z = ratio * ( float(self.incoming_z[faster_arm_index][i]) - float(z) )
       self.incoming_z[faster_arm_index][i] = str( float(z) + delta_z )
 
     for i, roll in enumerate( self.wrapped_roll[faster_arm_index], start=0 ):
-      delta_roll = (1/ratio) * ( float(self.wrapped_roll[faster_arm_index][i]) - float(roll) )
+      delta_roll = ratio * ( float(self.wrapped_roll[faster_arm_index][i]) - float(roll) )
       self.wrapped_roll[faster_arm_index][i] = str( float(roll) + delta_roll )
 
     for i, pitch in enumerate( self.wrapped_pitch[faster_arm_index], start=0 ):
-      delta_pitch = (1/ratio) * ( float(self.wrapped_pitch[faster_arm_index][i]) - float(pitch) )
+      delta_pitch = ratio * ( float(self.wrapped_pitch[faster_arm_index][i]) - float(pitch) )
       self.wrapped_pitch[faster_arm_index][i] = str( float(pitch) + delta_pitch )
 
     for i, yaw in enumerate( self.wrapped_yaw[faster_arm_index], start=0 ):
-      delta_yaw = (1/ratio) * ( float(self.wrapped_yaw[faster_arm_index][i]) - float(yaw) )
+      delta_yaw = ratio * ( float(self.wrapped_yaw[faster_arm_index][i]) - float(yaw) )
       self.wrapped_yaw[faster_arm_index][i] = str( float(yaw) + delta_yaw )
 
 

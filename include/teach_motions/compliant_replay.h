@@ -64,11 +64,13 @@ public:
   std::vector<double> times_, x_dot_, y_dot_, z_dot_, roll_dot_, pitch_dot_, yaw_dot_;
 
   // TF frame of incoming jog cmds
-  // TODO: set to empty after testing
-  std::string frame_ = "l_ur5_arm_ee_link";
+  std::string jog_command_frame_ = "";
+
+  // TF frame of force/torque data
+  std::string force_torque_frame_ = "";
 
   // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
-  std::vector<double> stiffness_{50, 50, 50, 50, 50, 50};
+  std::vector<double> stiffness_{2000, 2000, 2000, 2000, 2000, 2000};
 
   // Related to the cutoff frequency of the low-pass filter.
   double filter_param_ = 10.;
