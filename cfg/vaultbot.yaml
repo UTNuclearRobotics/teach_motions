@@ -2,7 +2,7 @@
 teach_motions:
   output_tf_frame:  base_link  # Frame to save the recorded data in
   interpolation_timestep:  0.008  # 125 Hz
-  num_arms:  1
+  num_arms:  2
   joints_topic:  joint_states
   teach_mode_velocity_scale:  0.25  # Scale the speed of taught motions. Affects the recorded times only.
   ee0:

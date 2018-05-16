@@ -219,27 +219,22 @@ class process_pose_data:
 
     if ratio > 1:
       faster_arm_index = 1
+      slower_arm_index = 0
       # Make this ratio <1 for all future calcs
       ratio = 1/ratio
     else:
       faster_arm_index = 0
+      slower_arm_index = 1
+    rospy.loginfo('Faster arm index: ' + str(faster_arm_index) )
+
+    total_duration = float( self.incoming_times[slower_arm_index][-1] )
+    rospy.loginfo('Scaling both trajectories to match duration: ' + str( total_duration ) )
 
     # Lengthen each timestep to make the faster trajectory match slower.
-    for i, t in enumerate( self.incoming_times[faster_arm_index], start=0 ):
-      delta_t = ratio * ( float(self.incoming_times[faster_arm_index][i]) - float(t) )
-      self.incoming_times[faster_arm_index][i] = str( float(t) + delta_t )
+    for i in range( 0, len( self.incoming_times[faster_arm_index] )):
+      self.incoming_times[faster_arm_index][i] = (i+1)*total_duration/len(self.incoming_times[faster_arm_index])
 
-    rospy.logwarn( self.incoming_times[0] )
 
-    # Modify each timestep to apply teach_mode_velocity_scale...
-    # user may want the robot to move faster or slower than they could teach it.
-    # for arm_index in range( 0, int(self.num_arms) ):
-    #   for i, t in enumerate( self.incoming_times[arm_index], start=0 ):
-    #     delta_t = self.teach_mode_velocity_scale * ( float(self.incoming_times[arm_index][i]) - float(t) )
-    #     self.incoming_times[arm_index][i] = str( float(t) + delta_t )
-
-    # rospy.logerr( self.incoming_times[0] )
-      
     # Contract the velocities
     for i, x in enumerate( self.incoming_x[faster_arm_index], start=0 ):
       delta_x = ratio * ( float(self.incoming_x[faster_arm_index][i]) - float(x) )
