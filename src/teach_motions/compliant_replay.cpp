@@ -92,18 +92,17 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
       // Send cmds to the robot(s)
       jog_cmd.header.frame_id = arm_data_objects_[arm_index].jog_command_frame_;
       jog_cmd.header.stamp = ros::Time::now();
-      // TODO: this should be velocity_out, not velocity_nominal:
-      jog_cmd.twist.linear.x = velocity_nominal[0];
-      jog_cmd.twist.linear.y = velocity_nominal[1];
-      jog_cmd.twist.linear.z = velocity_nominal[2];
-      jog_cmd.twist.angular.x = velocity_nominal[3];
-      jog_cmd.twist.angular.y = velocity_nominal[4];
-      jog_cmd.twist.angular.z = velocity_nominal[5];
+      jog_cmd.twist.linear.x = velocity_out[0];
+      jog_cmd.twist.linear.y = velocity_out[1];
+      jog_cmd.twist.linear.z = velocity_out[2];
+      jog_cmd.twist.angular.x = velocity_out[3];
+      jog_cmd.twist.angular.y = velocity_out[4];
+      jog_cmd.twist.angular.z = velocity_out[5];
 
       velocity_pubs_[arm_index].publish(jog_cmd);
 
       // Set the flag if a force or torque limit is reached
-      if ( compliance_status_[arm_index] == compliantEnum::CONDITION_MET )
+      if ( (compliance_status_[arm_index] == compliantEnum::FT_VIOLATION) || (compliance_status_[arm_index] == compliantEnum::CONDITION_MET) )
         force_or_torque_limit_ = true;
     }
 
