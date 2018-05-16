@@ -261,11 +261,16 @@ class process_pose_data:
       self.wrapped_yaw[faster_arm_index][i] = str( float(yaw) + delta_yaw )
 
 
+  # Fit splines to the trajectory data of one arm at a time.
+  # Do this so we can interpolate and differentiate.
+  # Differentiate the spline to calculate a velocity at a fixed timestep
   def fit_splines(self):
-
-    # Fit splines for one arm at a time
-    # Differentiate the spline to calculate a velocity at a fixed timestep
     for arm_index in range( 0, int(self.num_arms) ):
+      # Expand the timesteps by the scale the user specified in yaml file
+      timescale = 1/self.teach_mode_velocity_scale
+      for i in range( 0, len( self.incoming_times[arm_index] )):
+        self.incoming_times[arm_index][i] = timescale * float(self.incoming_times[arm_index][i])
+
       # There's some extra BS here to convert to floats
       x_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_x[arm_index], k=5)
 
@@ -289,13 +294,15 @@ class process_pose_data:
       pitch_dot_this_arm = []
       yaw_dot_this_arm = []
 
+      # Also apply the velocity scale the user specified in yaml file
       for t in self.outgoing_times:
-        x_dot_this_arm.append( x_dot(t) )
-        y_dot_this_arm.append( y_dot(t) )
-        z_dot_this_arm.append( z_dot(t) )
-        roll_dot_this_arm.append( roll_dot(t) )
-        pitch_dot_this_arm.append( pitch_dot(t) )
-        yaw_dot_this_arm.append( yaw_dot(t) )
+        x_dot_this_arm.append( self.teach_mode_velocity_scale * x_dot(t) )
+        y_dot_this_arm.append( self.teach_mode_velocity_scale * y_dot(t) )
+        z_dot_this_arm.append( self.teach_mode_velocity_scale * z_dot(t) )
+        roll_dot_this_arm.append( self.teach_mode_velocity_scale * roll_dot(t) )
+        pitch_dot_this_arm.append( self.teach_mode_velocity_scale * pitch_dot(t) )
+        yaw_dot_this_arm.append( self.teach_mode_velocity_scale * yaw_dot(t) )
+
       
       # Combine data series for all arms.
       # First column holds data for arm0
@@ -334,6 +341,7 @@ class process_pose_data:
       plt.plot(t, yaw_dot(t), 'g', lw=3, alpha=0.7)
       plt.title('yaw_dot, arm ' + str(arm_index) + ' [EE frame]')
       plt.show()
+
 
   def save_data(self):
     filepath = rospkg.RosPack().get_path('teach_motions')
