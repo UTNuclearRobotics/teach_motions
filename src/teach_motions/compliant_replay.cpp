@@ -221,7 +221,7 @@ void compliant_replay::CompliantReplay::readTraj()
   // Read vectors for each arm
   for (int arm_index=0; arm_index<num_arms_; arm_index++)
   {
-    std::ifstream file( path + "/data/handle7_arm" + std::to_string(arm_index) + "_processed.csv" );
+    std::ifstream file( path + "/data/" + datafile_ + "_arm" + std::to_string(arm_index) + "_processed.csv" );
 
     // Ignore the first line (headers)
     getline( file, line);

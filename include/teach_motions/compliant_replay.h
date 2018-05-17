@@ -79,7 +79,8 @@ public:
   std::vector<double> deadband_{10, 10, 10, 10, 10, 10};
 
   // Stop when any force exceeds X N, or torque exceeds X Nm
-  std::vector<double> end_condition_wrench_{60, 60, 60, 60, 60, 60};
+  // The robot controller's built-in safety limits are ~90 N, ? Nm
+  std::vector<double> end_condition_wrench_{90, 90, 90, 60, 60, 60};
 
   // Current force/torque data
   geometry_msgs::WrenchStamped ft_data_;
