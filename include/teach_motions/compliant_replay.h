@@ -70,7 +70,7 @@ public:
   std::string force_torque_frame_ = "";
 
   // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
-  std::vector<double> stiffness_{8000, 8000, 8000, 2000, 2000, 2000};
+  std::vector<double> stiffness_{100000, 25000, 25000, 2000, 2000, 2000};
 
   // Related to the cutoff frequency of the low-pass filter.
   double filter_param_ = 10.;
@@ -80,7 +80,7 @@ public:
 
   // Stop when any force exceeds X N, or torque exceeds X Nm
   // The robot controller's built-in safety limits are ~90 N, ? Nm
-  std::vector<double> end_condition_wrench_{90, 90, 90, 60, 60, 60};
+  std::vector<double> end_condition_wrench_{70, 70, 70, 60, 60, 60};
 
   // Current force/torque data
   geometry_msgs::WrenchStamped ft_data_;

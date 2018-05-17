@@ -4,7 +4,7 @@ teach_motions:
   interpolation_timestep:  0.008  # 125 Hz
   num_arms:  1
   joints_topic:  joint_states
-  teach_mode_velocity_scale:  0.25  # Scale the speed of taught motions. Affects the recorded times only.
+  teach_mode_velocity_scale:  0.08  # Scale the speed of taught motions. Affects the recorded times only.
   ee0:
     movegroup_name:  right_ur5
     ee_frame_name: right_ur5_ee_link
