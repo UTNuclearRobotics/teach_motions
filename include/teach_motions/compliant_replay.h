@@ -58,7 +58,6 @@ namespace compliant_replay
 class SingleArmData
 {
 public:
-  void setComplianceParams();
 
   // Incoming trajectory data is stored in these vectors
   std::vector<double> times_, x_dot_, y_dot_, z_dot_, roll_dot_, pitch_dot_, yaw_dot_;
@@ -98,6 +97,8 @@ class CompliantReplay
 {
 public:
   CompliantReplay();
+
+  void setComplianceParams();
 
 private:
   // CB for halt warnings from the jog_arm nodes

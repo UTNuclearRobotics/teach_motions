@@ -184,7 +184,7 @@ void compliant_replay::CompliantReplay::setup()
     compliance_status_.push_back( compliantEnum::CONDITION_NOT_MET );
 
     // Customize the compliance parameters
-    arm_data_objects_.at(arm_index).setComplianceParams();
+    setComplianceParams();
 
     // Wait for first force/torque data to arrive for this arm
     ROS_INFO_STREAM("Waiting for first force/torque data on topic " << arm_data_objects_.at(arm_index).force_torque_data_topic_ );
@@ -215,8 +215,7 @@ void compliant_replay::CompliantReplay::readTraj()
 {
   std::string path = ros::package::getPath("teach_motions");
 
-  std::string line;
-  std::string value;
+  std::string line, value;
 
   // Read vectors for each arm
   for (int arm_index=0; arm_index<num_arms_; arm_index++)
@@ -295,7 +294,31 @@ geometry_msgs::WrenchStamped compliant_replay::CompliantReplay::transformToEEF(
   return wrench_out;
 }
 
-void compliant_replay::SingleArmData::setComplianceParams()
+void compliant_replay::CompliantReplay::setComplianceParams()
 {
-  // TODO: read stiffness from datafile
+  std::string path = ros::package::getPath("teach_motions");
+  std::string line, value;
+
+  // Read vectors for each arm
+  for (int arm_index=0; arm_index<num_arms_; arm_index++)
+  {
+    std::ifstream file( path + "/data/supplementary/" + datafile_ + "_arm" + std::to_string(arm_index) + "_supplementary.csv" );
+
+    //while ( file.good() )
+    for (int i=0; i<6; i++)
+    {
+      // Read a whole line
+      getline( file, line);
+
+      std::stringstream ss(line);
+
+      // Get individual values
+      getline(ss, value, ',');
+      if (value != "")  // Check for end of file
+      {
+        getline(ss, value, ',');
+        arm_data_objects_[arm_index].stiffness_[i] = std::stod(value);
+      }
+    }
+  }
 }

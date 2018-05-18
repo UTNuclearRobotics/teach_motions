@@ -1,0 +1,6 @@
+X-stiffness,100000
+Y-stiffness,8000
+Z-stiffness,8000
+Roll-stiffness,2000
+Pitch-stiffness,2000
+Yaw-stiffness,2000
