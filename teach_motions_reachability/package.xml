@@ -1,0 +1,27 @@
+<package>
+  <name>teach_motions_reachability</name>
+  <version>0.0.0</version>
+  <description>
+     Show whether a saved trajectory is reachable.
+  </description>
+  <maintainer email="andyz@utexas.edu">Andy Zelenak</maintainer>
+  <license>BSD</license>
+
+  <url>todo</url>
+  <author>Andy Zelenak</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>qtbase5-dev</build_depend>
+  <build_depend>rviz</build_depend>
+
+  <run_depend>libqt5-core</run_depend>
+  <run_depend>libqt5-gui</run_depend>
+  <run_depend>libqt5-widgets</run_depend>
+  <run_depend>rviz</run_depend>
+
+  <export>
+      <rosdoc config="${prefix}/rosdoc.yaml"/>
+      <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>
