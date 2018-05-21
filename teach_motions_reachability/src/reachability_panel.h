@@ -40,7 +40,7 @@ class QLineEdit;
 namespace teach_motions_reachability
 {
 
-class TeleopPanel: public rviz::Panel
+class ReachabilityPanel: public rviz::Panel
 {
 // This class uses Qt slots and is a subclass of QObject, so it needs
 // the Q_OBJECT macro.
@@ -53,7 +53,7 @@ public:
   // a default of 0 lets the default constructor work and also lets
   // someone using the class for something else to pass in a parent
   // widget as they normally would with Qt.
-  TeleopPanel( QWidget* parent = 0 );
+  ReachabilityPanel( QWidget* parent = 0 );
 
   // Now we declare overrides of rviz::Panel functions for saving and
   // loading data from the config file.  Here the data is the
@@ -67,24 +67,21 @@ public Q_SLOTS:
   // (it is called directly), but it is easy to define it as a public
   // slot instead of a private function in case it would be useful to
   // some other user.
-  void setTopic( const QString& topic );
+  void setFilePrefix( const QString& topic );
 
   // Here we declare some internal slots.
 protected Q_SLOTS:
   // updateTopic() reads the topic name from the QLineEdit and calls
   // setTopic() with the result.
-  void updateTopic();
+  void updateFilePrefix();
 
   // Then we finish up with protected member variables.
 protected:
-  // One-line text editor for entering the outgoing ROS topic name.
-  QLineEdit* output_topic_editor_;
+  // One-line text editor for entering the datafile name.
+  QLineEdit* file_prefix_editor_;
 
   // The current name of the output topic.
-  QString output_topic_;
-
-  // The ROS publisher for the command velocity.
-  ros::Publisher velocity_publisher_;
+  QString file_prefix_;
 
   // The ROS node handle.
   ros::NodeHandle nh_;

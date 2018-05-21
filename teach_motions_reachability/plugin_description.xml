@@ -1,9 +1,9 @@
 <library path="lib/libteach_motions_reachability">
   <class name="teach_motions_reachability/Reachability"
-         type="teach_motions_reachability::TeleopPanel"
+         type="teach_motions_reachability::ReachabilityPanel"
          base_class_type="rviz::Panel">
     <description>
-      Graphically display whether a saved trajectory is reachable.
+      Display whether a saved trajectory is reachable from current pose.
     </description>
   </class>
 </library>

@@ -29,7 +29,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 ## Here we specify the list of source files.
 ## The generated MOC files are included automatically as headers.
 set(SRC_FILES
-  src/teleop_panel.cpp
+  src/reachability_panel.cpp
 )
 
 ## An rviz plugin is just a shared library, so here we declare the

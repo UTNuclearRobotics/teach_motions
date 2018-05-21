@@ -29,77 +29,62 @@
 
 #include <stdio.h>
 
-#include <QPainter>
 #include <QLineEdit>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QTimer>
 
-#include <geometry_msgs/Twist.h>
-#include "teleop_panel.h"
+#include "reachability_panel.h"
 
 namespace teach_motions_reachability
 {
 
-// BEGIN_TUTORIAL
-// Here is the implementation of the TeleopPanel class.  TeleopPanel
+// Here is the implementation of the ReachabilityPanel class.  ReachabilityPanel
 // has these responsibilities:
 //
-// - Act as a container for GUI elements QLineEdit.
+// - Act as a container for GUI elements QLineEdit and LED indicators.
 // - Saving and restoring internal state from a config file.
 //
 // We start with the constructor, doing the standard Qt thing of
 // passing the optional *parent* argument on to the superclass
 // constructor
-TeleopPanel::TeleopPanel( QWidget* parent )
+ReachabilityPanel::ReachabilityPanel( QWidget* parent )
   : rviz::Panel( parent )
 {
-  // Next we lay out the "output topic" text entry field using a
+  // Next we lay out the "file_prefix" text entry field using a
   // QLabel and a QLineEdit in a QHBoxLayout.
-  QHBoxLayout* topic_layout = new QHBoxLayout;
-  topic_layout->addWidget( new QLabel( "Output Topic:" ));
-  output_topic_editor_ = new QLineEdit;
-  topic_layout->addWidget( output_topic_editor_ );
+  QHBoxLayout* file_prefix_layout = new QHBoxLayout;
+  file_prefix_layout->addWidget( new QLabel( "File Prefix (e.g. 'cabinet_door1'):" ));
+  file_prefix_editor_ = new QLineEdit;
+  file_prefix_layout->addWidget( file_prefix_editor_ );
 
   // Lay out the topic field above the control widget.
   QVBoxLayout* layout = new QVBoxLayout;
-  layout->addLayout( topic_layout );
+  layout->addLayout( file_prefix_layout );
   setLayout( layout );
 
   // Next we make signal/slot connections.
-  connect( output_topic_editor_, SIGNAL( editingFinished() ), this, SLOT( updateTopic() ));
+  connect( file_prefix_editor_, SIGNAL( editingFinished() ), this, SLOT( updateFilePrefix() ));
 }
 
-// Read the topic name from the QLineEdit and call setTopic() with the
+// Read the topic name from the QLineEdit and call setFilePrefix() with the
 // results.  This is connected to QLineEdit::editingFinished() which
 // fires when the user presses Enter or Tab or otherwise moves focus
 // away.
-void TeleopPanel::updateTopic()
+void ReachabilityPanel::updateFilePrefix()
 {
-  setTopic( output_topic_editor_->text() );
+  setFilePrefix( file_prefix_editor_->text() );
 }
 
 // Set the topic name we are publishing to.
-void TeleopPanel::setTopic( const QString& new_topic )
+void ReachabilityPanel::setFilePrefix( const QString& new_file_prefix )
 {
   // Only take action if the name has changed.
-  if( new_topic != output_topic_ )
+  if( new_file_prefix != file_prefix_ )
   {
-    output_topic_ = new_topic;
-    // If the topic is the empty string, don't publish anything.
-    if( output_topic_ == "" )
-    {
-      velocity_publisher_.shutdown();
-    }
-    else
-    {
-      // The old ``velocity_publisher_`` is destroyed by this assignment,
-      // and thus the old topic advertisement is removed.  The call to
-      // nh_advertise() says we want to publish data on the new topic
-      // name.
-      velocity_publisher_ = nh_.advertise<geometry_msgs::Twist>( output_topic_.toStdString(), 1 );
-    }
+    file_prefix_ = new_file_prefix;
+    ROS_INFO_STREAM( file_prefix_.toStdString() );
+
     // rviz::Panel defines the configChanged() signal.  Emitting it
     // tells RViz that something in this panel has changed that will
     // affect a saved config file.  Ultimately this signal can cause
@@ -113,21 +98,21 @@ void TeleopPanel::setTopic( const QString& new_topic )
 // Save all configuration data from this panel to the given
 // Config object.  It is important here that you call save()
 // on the parent class so the class id and panel name get saved.
-void TeleopPanel::save( rviz::Config config ) const
+void ReachabilityPanel::save( rviz::Config config ) const
 {
   rviz::Panel::save( config );
-  config.mapSetValue( "Topic", output_topic_ );
+  config.mapSetValue( "FilePrefix", file_prefix_ );
 }
 
 // Load all configuration data for this panel from the given Config object.
-void TeleopPanel::load( const rviz::Config& config )
+void ReachabilityPanel::load( const rviz::Config& config )
 {
   rviz::Panel::load( config );
-  QString topic;
-  if( config.mapGetString( "Topic", &topic ))
+  QString file_prefix;
+  if( config.mapGetString( "FilePrefix", &file_prefix ))
   {
-    output_topic_editor_->setText( topic );
-    updateTopic();
+    file_prefix_editor_->setText( file_prefix );
+    updateFilePrefix();
   }
 }
 
@@ -137,5 +122,4 @@ void TeleopPanel::load( const rviz::Config& config )
 // loadable by pluginlib::ClassLoader must have these two lines
 // compiled in its .cpp file, outside of any namespace scope.
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(teach_motions_reachability::TeleopPanel,rviz::Panel )
-// END_TUTORIAL
+PLUGINLIB_EXPORT_CLASS(teach_motions_reachability::ReachabilityPanel,rviz::Panel )
