@@ -98,7 +98,7 @@ class CompliantReplay
 public:
   CompliantReplay();
 
-  void setComplianceParams();
+  void setComplianceParams(int armIndex);
 
 private:
   // CB for halt warnings from the jog_arm nodes
