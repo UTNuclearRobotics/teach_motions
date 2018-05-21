@@ -69,7 +69,7 @@ public:
   std::string force_torque_frame_ = "";
 
   // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
-  std::vector<double> stiffness_{100000, 25000, 25000, 2000, 2000, 2000};
+  std::vector<double> stiffness_{25000, 25000, 25000, 2000, 2000, 2000};
 
   // Related to the cutoff frequency of the low-pass filter.
   double filter_param_ = 10.;

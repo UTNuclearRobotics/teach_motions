@@ -1,8 +1,12 @@
 <launch>
 
-  <rosparam command="load" file="$(find teach_motions)/cfg/$(arg filename).yaml" >
-    <arg name="filename" />
+  <arg name="filename" />
+
+  <rosparam param="teach_motions/filename" subst_value="True">
+    $(arg filename)
   </rosparam>
+
+  <rosparam command="load" file="$(find teach_motions)/cfg/$(arg filename).yaml" />
 
   <node name="postprocess" pkg="teach_motions" type="process_pose_data" output="screen" />
 

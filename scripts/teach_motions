@@ -106,8 +106,7 @@ class teach_motions:
 
     self.joints_topic = rospy.get_param("teach_motions/joints_topic")
 
-    # Prompt user for the filename
-    self.datafile_name = raw_input("Enter the datafile name, e.g. 'handle7': ")
+    self.datafile_name = rospy.get_param("teach_motions/filename")
 
     # Get the name of the joints for each MoveGroup
     robot = moveit_commander.RobotCommander()

@@ -116,8 +116,8 @@ class process_pose_data:
       param_string = "teach_motions/output_tf_frame"
       self.tf_of_incoming_data = rospy.get_param(param_string)
 
-    # Prompt user for the filename
-    self.datafile_name = raw_input("Enter the datafile name, e.g. 'handle7': ")
+    param_string = "teach_motions/filename"
+    self.datafile_name = rospy.get_param(param_string)
 
     rospy.loginfo("The interpolation timestep will be [s]: ")
     rospy.loginfo(self.interpolation_timestep)

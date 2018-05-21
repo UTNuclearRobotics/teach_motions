@@ -53,9 +53,8 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   // Listen to the jog_arm warning topic. Exit if the jogger stops
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/halted", 1, &CompliantReplay::haltCB, this);
 
-  // Prompt user for datafile name
-  ROS_INFO_NAMED("compliant_replay", "Enter the datafile name, e.g. 'handle7': ");
-  std::cin >> datafile_;
+  // Datafile name
+  datafile_ = get_ros_params::getStringParam("teach_motions/filename", n_);
 
   setup();
 
@@ -318,6 +317,7 @@ void compliant_replay::CompliantReplay::setComplianceParams()
       {
         getline(ss, value, ',');
         arm_data_objects_[arm_index].stiffness_[i] = std::stod(value);
+        ROS_INFO_STREAM( arm_data_objects_[arm_index].stiffness_[i] );
       }
     }
   }
