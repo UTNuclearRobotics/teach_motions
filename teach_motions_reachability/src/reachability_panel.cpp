@@ -1,32 +1,3 @@
-/*
- * Copyright (c) 2011, Willow Garage, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Willow Garage, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 #include "reachability_panel.h"
 
 namespace teach_motions_reachability
@@ -42,7 +13,7 @@ namespace teach_motions_reachability
 // passing the optional *parent* argument on to the superclass
 // constructor
 ReachabilityPanel::ReachabilityPanel( QWidget* parent )
-  : rviz::Panel( parent )
+  : rviz::Panel( parent ), spinner_(1)
 {
   // Next we lay out the "file_prefix" text entry field using a
   // QLabel and a QLineEdit in a QHBoxLayout.
@@ -63,6 +34,8 @@ ReachabilityPanel::ReachabilityPanel( QWidget* parent )
   // Next we make signal/slot connections.
   connect( file_prefix_editor_, SIGNAL( editingFinished() ), this, SLOT( updateFilePrefix() ));
   connect( preview_button_, SIGNAL( clicked() ), this, SLOT( previewTrajectory() ) );
+
+  spinner_.start();
 }
 
 // Read the file name from the QLineEdit and call readChangeInPose() with the
@@ -77,7 +50,44 @@ void ReachabilityPanel::updateFilePrefix()
 // Preview the trajectory when clicked.
 void ReachabilityPanel::previewTrajectory()
 {
-  ROS_WARN_STREAM("I was clicked.");
+  // Preview for each arm:
+  // Get the current pose, add the change in pose from the datafile.
+  // Plan a cartesian move to that target pose.
+  // Visualize it in RViz.
+
+  ros::Publisher display_publisher = nh_.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
+  moveit_msgs::DisplayTrajectory display_trajectory;
+
+  // TODO: check if current_pose and change_in_pose are in the same frame
+  for (int arm_index=0; arm_index<arm_datas_.size(); arm_index++)
+  {
+    // Calculate the new target pose
+    geometry_msgs::PoseStamped current_pose = arm_datas_.at(arm_index).move_group_ptr -> getCurrentPose();
+    std::vector<geometry_msgs::Pose> waypoints;
+    waypoints.push_back( current_pose.pose );
+
+    geometry_msgs::PoseStamped target_pose;
+    target_pose.header.frame_id = current_pose.header.frame_id;
+    target_pose.pose.position.x = current_pose.pose.position.x + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
+    target_pose.pose.position.y = current_pose.pose.position.y + arm_datas_.at(arm_index).change_in_pose.pose.position.y;
+    target_pose.pose.position.z = current_pose.pose.position.z + arm_datas_.at(arm_index).change_in_pose.pose.position.z;
+
+    tf::Quaternion q_current, q_incremental, q_final;
+    quaternionMsgToTF(current_pose.pose.orientation, q_current);
+    quaternionMsgToTF(arm_datas_.at(arm_index).change_in_pose.pose.orientation, q_incremental);
+    q_final = q_incremental*q_current;
+    quaternionTFToMsg(q_final, target_pose.pose.orientation);
+
+    // Plan to the new target pose
+    waypoints.push_back( target_pose.pose );
+    moveit_msgs::RobotTrajectory trajectory;
+    double fraction = arm_datas_.at(arm_index).move_group_ptr -> computeCartesianPath(waypoints, 0.005, 0.0, trajectory);
+
+    ROS_INFO("Cartesian path %.2f%% achieved", fraction * 100.0);
+
+    display_trajectory.trajectory.push_back(trajectory);
+    display_publisher.publish(display_trajectory);
+  }
 }
 
 // If user inputs new text, update the pose data
@@ -87,6 +97,9 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
   if( new_file_prefix != file_prefix_ )
   {
     file_prefix_ = new_file_prefix;
+
+    // Clear the vector of arm data
+    arm_datas_.clear();
 
     // There may only be one arm.
     std::string path = ros::package::getPath("teach_motions");
@@ -106,8 +119,6 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
 
       ROS_INFO_STREAM("Reading pose data for arm " << arm_index);
       geometry_msgs::PoseStamped pose;
-      // Assume base_link frame, for now
-      pose.header.frame_id = "base_link";
 
       // Ignore the first line (headers)
       getline( file, line);
@@ -149,14 +160,17 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
           quaternionTFToMsg(q_tf , q_msg);
           pose.pose.orientation = q_msg;
 
-          arm_info.change_in_pose = pose; 
-
-          // Get MoveGroup and frame_id
+          // Get MoveGroup
           getline(ss, value, ',');
-          arm_info.move_group = value;
+          arm_info.move_group_name = value;
+          // Create a new movegroup and store a pointer to it. Use shared_ptr so we don't worry about deleting it.
+          arm_info.move_group_ptr.reset( new moveit::planning_interface::MoveGroupInterface(arm_info.move_group_name) );
 
+          // Get frame_id
           getline(ss, value, ',');
-          arm_info.frame_id = value;       
+          arm_info.frame_id = value; 
+          pose.header.frame_id = value;   
+          arm_info.change_in_pose = pose;    
         }
       }
 
@@ -164,7 +178,7 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
 
       //ROS_INFO_STREAM( arm_datas_.back().change_in_pose );
       //ROS_INFO_STREAM( arm_datas_.back().frame_id );
-      //ROS_INFO_STREAM( arm_datas_.back().move_group );
+      //ROS_INFO_STREAM( arm_datas_.back().move_group_name );
     }
 
     // rviz::Panel defines the configChanged() signal.  Emitting it

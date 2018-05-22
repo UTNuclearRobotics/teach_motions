@@ -3,7 +3,10 @@ project(teach_motions_reachability)
 
 add_compile_options(-std=c++11)
 
-find_package(catkin REQUIRED COMPONENTS rviz)
+find_package(catkin REQUIRED COMPONENTS
+ moveit_ros_move_group
+ rviz
+)
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
