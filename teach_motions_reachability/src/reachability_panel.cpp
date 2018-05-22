@@ -27,13 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-
-#include <QLineEdit>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-
 #include "reachability_panel.h"
 
 namespace teach_motions_reachability
@@ -58,22 +51,33 @@ ReachabilityPanel::ReachabilityPanel( QWidget* parent )
   file_prefix_editor_ = new QLineEdit;
   file_prefix_layout->addWidget( file_prefix_editor_ );
 
-  // Lay out the topic field above the control widget.
+  // Stack stuff vertically
   QVBoxLayout* layout = new QVBoxLayout;
-  layout->addLayout( file_prefix_layout );
+  layout->addLayout( file_prefix_layout, Qt::AlignTop );
+  preview_button_ = new QPushButton( tr("Preview") );
+  layout->addWidget( preview_button_, Qt::AlignTop );
+  // Push other things towards the top with this expanding spacer
+  layout->addStretch();
   setLayout( layout );
 
   // Next we make signal/slot connections.
   connect( file_prefix_editor_, SIGNAL( editingFinished() ), this, SLOT( updateFilePrefix() ));
+  connect( preview_button_, SIGNAL( clicked() ), this, SLOT( previewTrajectory() ) );
 }
 
-// Read the topic name from the QLineEdit and call readChangeInPose() with the
+// Read the file name from the QLineEdit and call readChangeInPose() with the
 // results.  This is connected to QLineEdit::editingFinished() which
 // fires when the user presses Enter or Tab or otherwise moves focus
 // away.
 void ReachabilityPanel::updateFilePrefix()
 {
   readChangeInPose( file_prefix_editor_->text() );
+}
+
+// Preview the trajectory when clicked.
+void ReachabilityPanel::previewTrajectory()
+{
+  ROS_WARN_STREAM("I was clicked.");
 }
 
 // If user inputs new text, update the pose data
@@ -83,7 +87,6 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
   if( new_file_prefix != file_prefix_ )
   {
     file_prefix_ = new_file_prefix;
-    ROS_INFO_STREAM( file_prefix_.toStdString() );
 
     // There may only be one arm.
     std::string path = ros::package::getPath("teach_motions");
@@ -153,18 +156,15 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
           arm_info.move_group = value;
 
           getline(ss, value, ',');
-          arm_info.frame_id = value;
-
-          arm_info.arm_index = arm_index;       
+          arm_info.frame_id = value;       
         }
       }
 
       arm_datas_.push_back( arm_info );
 
-      ROS_INFO_STREAM( arm_datas_.back().change_in_pose );
-      ROS_INFO_STREAM( arm_datas_.back().frame_id );
-      ROS_INFO_STREAM( arm_datas_.back().arm_index );
-      ROS_INFO_STREAM( arm_datas_.back().move_group );
+      //ROS_INFO_STREAM( arm_datas_.back().change_in_pose );
+      //ROS_INFO_STREAM( arm_datas_.back().frame_id );
+      //ROS_INFO_STREAM( arm_datas_.back().move_group );
     }
 
     // rviz::Panel defines the configChanged() signal.  Emitting it

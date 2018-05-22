@@ -36,10 +36,17 @@
 #include <ros/package.h>
 #include <ros/ros.h>
 #include <rviz/panel.h>
+#include <stdio.h>
 #include <string.h>
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
 #include <utility>
+
+#include <QLineEdit>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
 
 #endif
 
@@ -51,7 +58,6 @@ namespace teach_motions_reachability
 struct arm_pose_info {
   geometry_msgs::PoseStamped change_in_pose;
   std::string frame_id;
-  int arm_index;
   std::string move_group;
 };
 
@@ -86,9 +92,12 @@ public Q_SLOTS:
 
   // Here we declare some internal slots.
 protected Q_SLOTS:
-  // updateTopic() reads the topic name from the QLineEdit and calls
-  // setTopic() with the result.
+  // updateFilePrefix() reads the file name from the QLineEdit and calls
+  // readChangeInPose() with the result.
   void updateFilePrefix();
+
+  // Preview the trajectory when clicked.
+  void previewTrajectory();
 
   // Then we finish up with protected member variables.
 protected:
@@ -103,6 +112,9 @@ protected:
   // Pairs of arm indexes and PoseStampeds.
   // There may be 2 arms or just one, and the order isn't certain.
   std::vector< teach_motions_reachability::arm_pose_info > arm_datas_;
+
+  // Preview trajectory button
+  QPushButton* preview_button_;
 };
 
 } // end namespace teach_motions_reachability
