@@ -30,15 +30,30 @@
 #define TELEOP_PANEL_H
 
 #ifndef Q_MOC_RUN
-# include <ros/ros.h>
 
-# include <rviz/panel.h>
+#include <fstream>
+#include <geometry_msgs/PoseStamped.h>
+#include <ros/package.h>
+#include <ros/ros.h>
+#include <rviz/panel.h>
+#include <string.h>
+#include <tf/tf.h>
+#include <tf/transform_datatypes.h>
+#include <utility>
+
 #endif
 
 class QLineEdit;
 
 namespace teach_motions_reachability
 {
+
+struct arm_pose_info {
+  geometry_msgs::PoseStamped change_in_pose;
+  std::string frame_id;
+  int arm_index;
+  std::string move_group;
+};
 
 class ReachabilityPanel: public rviz::Panel
 {
@@ -67,7 +82,7 @@ public Q_SLOTS:
   // (it is called directly), but it is easy to define it as a public
   // slot instead of a private function in case it would be useful to
   // some other user.
-  void setFilePrefix( const QString& topic );
+  void readChangeInPose( const QString& topic );
 
   // Here we declare some internal slots.
 protected Q_SLOTS:
@@ -80,11 +95,14 @@ protected:
   // One-line text editor for entering the datafile name.
   QLineEdit* file_prefix_editor_;
 
-  // The current name of the output topic.
+  // The current file prefix.
   QString file_prefix_;
 
-  // The ROS node handle.
   ros::NodeHandle nh_;
+
+  // Pairs of arm indexes and PoseStampeds.
+  // There may be 2 arms or just one, and the order isn't certain.
+  std::vector< teach_motions_reachability::arm_pose_info > arm_datas_;
 };
 
 } // end namespace teach_motions_reachability

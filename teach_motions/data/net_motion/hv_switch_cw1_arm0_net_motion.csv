@@ -1,0 +1,2 @@
+X [m],Y [m],Z [m],Roll [deg],Pitch [deg],Yaw [deg],MoveGroup,Frame
+0.0170914787,0.1555659266,-0.1895490733,80.0559393988,-5.347823399,4.3967098469,right_ur5,base_link
