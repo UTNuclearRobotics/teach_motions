@@ -42,7 +42,7 @@ namespace teach_motions_reachability
 // Here is the implementation of the ReachabilityPanel class.  ReachabilityPanel
 // has these responsibilities:
 //
-// - Act as a container for GUI elements QLineEdit and LED indicators.
+// - Act as a container for GUI elements.
 // - Saving and restoring internal state from a config file.
 //
 // We start with the constructor, doing the standard Qt thing of
