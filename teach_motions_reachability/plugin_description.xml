@@ -3,7 +3,7 @@
          type="teach_motions_reachability::ReachabilityPanel"
          base_class_type="rviz::Panel">
     <description>
-      Display whether a saved trajectory is reachable from current pose.
+      Preview a saved trajectory.
     </description>
   </class>
 </library>

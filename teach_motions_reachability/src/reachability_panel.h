@@ -14,6 +14,7 @@
 #include <string.h>
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 #include <utility>
 
 #include <QLineEdit>
@@ -79,7 +80,7 @@ protected:
   // One-line text editor for entering the datafile name.
   QLineEdit* file_prefix_editor_;
 
-  // The current file prefix.
+  // The current file prefix, entered by user.
   QString file_prefix_;
 
   ros::NodeHandle nh_;
@@ -93,6 +94,8 @@ protected:
 
   // MoveIt! requires an asynch spinner
   ros::AsyncSpinner spinner_;
+
+  tf::TransformListener listener_;
 };
 
 } // end namespace teach_motions_reachability

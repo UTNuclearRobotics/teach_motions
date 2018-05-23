@@ -60,19 +60,32 @@ void ReachabilityPanel::previewTrajectory()
   // The display requires this start state
   moveit_msgs::RobotState start_state;
 
-  // TODO: check if current_pose and change_in_pose are in the same frame
   for (int arm_index=0; arm_index<arm_datas_.size(); arm_index++)
   {
-    // Calculate the new target pose
     geometry_msgs::PoseStamped current_pose = arm_datas_.at(arm_index).move_group_ptr -> getCurrentPose();
+
+    ROS_INFO_STREAM( "Initial current_pose: " << std::endl << std::endl << current_pose );
+    // Transform to the frame of the data
+    try
+    {
+      listener_.waitForTransform(current_pose.header.frame_id, arm_datas_.at(arm_index).frame_id, ros::Time::now(), ros::Duration(0.2));
+      listener_.transformPose(arm_datas_.at(arm_index).frame_id, current_pose, current_pose);
+    }
+    catch (tf::TransformException ex)
+    {
+      ROS_ERROR_STREAM("reachability_panel: " << ex.what());
+      return;
+    }
+    ROS_WARN_STREAM( "Transformed current_pose: " << std::endl << std::endl << current_pose );
     std::vector<geometry_msgs::Pose> waypoints;
     waypoints.push_back( current_pose.pose );
 
+    // Calculate the new target pose
     geometry_msgs::PoseStamped target_pose;
-    target_pose.header.frame_id = current_pose.header.frame_id;
-    target_pose.pose.position.x = current_pose.pose.position.x + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
-    target_pose.pose.position.y = current_pose.pose.position.y + arm_datas_.at(arm_index).change_in_pose.pose.position.y;
-    target_pose.pose.position.z = current_pose.pose.position.z + arm_datas_.at(arm_index).change_in_pose.pose.position.z;
+    target_pose.header.frame_id = arm_datas_.at(arm_index).frame_id;
+    target_pose.pose.position.x = current_pose.pose.position.x; // + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
+    target_pose.pose.position.y = current_pose.pose.position.y; // + arm_datas_.at(arm_index).change_in_pose.pose.position.y;
+    target_pose.pose.position.z = current_pose.pose.position.z; // + arm_datas_.at(arm_index).change_in_pose.pose.position.z;
 
     tf::Quaternion q_current, q_incremental, q_final;
     quaternionMsgToTF(current_pose.pose.orientation, q_current);
@@ -80,8 +93,17 @@ void ReachabilityPanel::previewTrajectory()
     q_final = q_incremental*q_current;
     quaternionTFToMsg(q_final, target_pose.pose.orientation);
 
+    ROS_ERROR_STREAM( "Target pose: " << std::endl << std::endl << target_pose );
+
+    // To display RPY
+    tf::Matrix3x3 m(q_incremental);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
+
     // Plan to the new target pose
-    waypoints.push_back( target_pose.pose );
+    //waypoints.push_back( target_pose.pose );
+
     moveit_msgs::RobotTrajectory trajectory;
     double fraction = arm_datas_.at(arm_index).move_group_ptr -> computeCartesianPath(waypoints, 0.005, 0.0, trajectory);
 
@@ -158,13 +180,13 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
 
           // Convert the rpy to quaternion
           getline(ss, value, ',');
-          double roll = std::stod( value );
+          double roll = std::stod( value )*3.14159/180; // Data was stored in degrees. Need rad.
 
           getline(ss, value, ',');
-          double pitch = std::stod( value );
+          double pitch = std::stod( value )*3.14159/180;
 
           getline(ss, value, ',');
-          double yaw = std::stod( value );
+          double yaw = std::stod( value )*3.14159/180;
 
           tf::Quaternion q_tf = tf::createQuaternionFromRPY(roll, pitch, yaw);
 
