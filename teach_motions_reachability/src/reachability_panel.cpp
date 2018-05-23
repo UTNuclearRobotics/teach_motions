@@ -63,8 +63,15 @@ void ReachabilityPanel::previewTrajectory()
   for (int arm_index=0; arm_index<arm_datas_.size(); arm_index++)
   {
     geometry_msgs::PoseStamped current_pose = arm_datas_.at(arm_index).move_group_ptr -> getCurrentPose();
+    std::vector<geometry_msgs::Pose> waypoints;
+    waypoints.push_back( current_pose.pose );
 
-    ROS_INFO_STREAM( "Initial current_pose: " << std::endl << std::endl << current_pose );
+    // 1) Transform current_pose to frame of the data
+    // 2) Adjust the transform: add the offset and apply the rotation to get target_pose
+    // 3) Transform back to the MoveGroup planning frame
+    // Yep, this could be simplified.
+
+    ROS_INFO_STREAM( "current_pose in the planning frame: " << std::endl << std::endl << current_pose );
     // Transform to the frame of the data
     try
     {
@@ -77,15 +84,13 @@ void ReachabilityPanel::previewTrajectory()
       return;
     }
     ROS_WARN_STREAM( "Transformed current_pose: " << std::endl << std::endl << current_pose );
-    std::vector<geometry_msgs::Pose> waypoints;
-    waypoints.push_back( current_pose.pose );
 
     // Calculate the new target pose
     geometry_msgs::PoseStamped target_pose;
     target_pose.header.frame_id = arm_datas_.at(arm_index).frame_id;
-    target_pose.pose.position.x = current_pose.pose.position.x; // + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
-    target_pose.pose.position.y = current_pose.pose.position.y; // + arm_datas_.at(arm_index).change_in_pose.pose.position.y;
-    target_pose.pose.position.z = current_pose.pose.position.z; // + arm_datas_.at(arm_index).change_in_pose.pose.position.z;
+    target_pose.pose.position.x = current_pose.pose.position.x + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
+    target_pose.pose.position.y = current_pose.pose.position.y + arm_datas_.at(arm_index).change_in_pose.pose.position.y;
+    target_pose.pose.position.z = current_pose.pose.position.z + arm_datas_.at(arm_index).change_in_pose.pose.position.z;
 
     tf::Quaternion q_current, q_incremental, q_final;
     quaternionMsgToTF(current_pose.pose.orientation, q_current);
@@ -101,8 +106,22 @@ void ReachabilityPanel::previewTrajectory()
     m.getRPY(roll, pitch, yaw);
     ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
 
+    // Transform back to the planning frame
+    ROS_INFO_STREAM( "target_pose in base_link: " << std::endl << std::endl << target_pose );
+    try
+    {
+      listener_.waitForTransform(target_pose.header.frame_id, arm_datas_.at(arm_index).move_group_ptr -> getPlanningFrame(), ros::Time::now(), ros::Duration(0.2));
+      listener_.transformPose(arm_datas_.at(arm_index).move_group_ptr -> getPlanningFrame(), target_pose, target_pose);
+    }
+    catch (tf::TransformException ex)
+    {
+      ROS_ERROR_STREAM("reachability_panel: " << ex.what());
+      return;
+    }
+    ROS_WARN_STREAM( "Transformed target_pose: " << std::endl << std::endl << target_pose );   
+
     // Plan to the new target pose
-    //waypoints.push_back( target_pose.pose );
+    waypoints.push_back( target_pose.pose );
 
     moveit_msgs::RobotTrajectory trajectory;
     double fraction = arm_datas_.at(arm_index).move_group_ptr -> computeCartesianPath(waypoints, 0.005, 0.0, trajectory);
