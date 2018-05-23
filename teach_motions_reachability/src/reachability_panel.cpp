@@ -26,6 +26,7 @@ ReachabilityPanel::ReachabilityPanel( QWidget* parent )
   QVBoxLayout* layout = new QVBoxLayout;
   layout->addLayout( file_prefix_layout, Qt::AlignTop );
   preview_button_ = new QPushButton( tr("Preview") );
+  preview_button_ -> setEnabled(false); // Wait for a valid filepath before enabling
   layout->addWidget( preview_button_, Qt::AlignTop );
   // Push other things towards the top with this expanding spacer
   layout->addStretch();
@@ -45,6 +46,9 @@ ReachabilityPanel::ReachabilityPanel( QWidget* parent )
 void ReachabilityPanel::updateFilePrefix()
 {
   readChangeInPose( file_prefix_editor_->text() );
+
+  // Only enable the preview button if the user gave a filepath
+  preview_button_ -> setEnabled( file_prefix_editor_->text() != "" );
 }
 
 // Preview the trajectory when clicked.
@@ -71,8 +75,8 @@ void ReachabilityPanel::previewTrajectory()
     // 3) Transform back to the MoveGroup planning frame
     // Yep, this could be simplified.
 
-    ROS_INFO_STREAM( "current_pose in the planning frame: " << std::endl << std::endl << current_pose );
-    // Transform to the frame of the data
+
+    // Transform current_pose to the frame of the data
     try
     {
       listener_.waitForTransform(current_pose.header.frame_id, arm_datas_.at(arm_index).frame_id, ros::Time::now(), ros::Duration(0.2));
@@ -83,9 +87,8 @@ void ReachabilityPanel::previewTrajectory()
       ROS_ERROR_STREAM("reachability_panel: " << ex.what());
       return;
     }
-    ROS_WARN_STREAM( "Transformed current_pose: " << std::endl << std::endl << current_pose );
 
-    // Calculate the new target pose
+    // Calculate the new target_pose
     geometry_msgs::PoseStamped target_pose;
     target_pose.header.frame_id = arm_datas_.at(arm_index).frame_id;
     target_pose.pose.position.x = current_pose.pose.position.x + arm_datas_.at(arm_index).change_in_pose.pose.position.x;
@@ -98,16 +101,13 @@ void ReachabilityPanel::previewTrajectory()
     q_final = q_incremental*q_current;
     quaternionTFToMsg(q_final, target_pose.pose.orientation);
 
-    ROS_ERROR_STREAM( "Target pose: " << std::endl << std::endl << target_pose );
+    // For debugging, it's helpful to display RPY
+    //tf::Matrix3x3 m(q_incremental);
+    //double roll, pitch, yaw;
+    //m.getRPY(roll, pitch, yaw);
+    //ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
 
-    // To display RPY
-    tf::Matrix3x3 m(q_incremental);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
-
-    // Transform back to the planning frame
-    ROS_INFO_STREAM( "target_pose in base_link: " << std::endl << std::endl << target_pose );
+    // Transform back to the planning frame before sending the command
     try
     {
       listener_.waitForTransform(target_pose.header.frame_id, arm_datas_.at(arm_index).move_group_ptr -> getPlanningFrame(), ros::Time::now(), ros::Duration(0.2));
@@ -118,7 +118,6 @@ void ReachabilityPanel::previewTrajectory()
       ROS_ERROR_STREAM("reachability_panel: " << ex.what());
       return;
     }
-    ROS_WARN_STREAM( "Transformed target_pose: " << std::endl << std::endl << target_pose );   
 
     // Plan to the new target pose
     waypoints.push_back( target_pose.pose );
