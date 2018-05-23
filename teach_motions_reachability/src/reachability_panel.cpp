@@ -57,6 +57,8 @@ void ReachabilityPanel::previewTrajectory()
 
   ros::Publisher display_publisher = nh_.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
   moveit_msgs::DisplayTrajectory display_trajectory;
+  // The display requires this start state
+  moveit_msgs::RobotState start_state;
 
   // TODO: check if current_pose and change_in_pose are in the same frame
   for (int arm_index=0; arm_index<arm_datas_.size(); arm_index++)
@@ -85,9 +87,19 @@ void ReachabilityPanel::previewTrajectory()
 
     ROS_INFO("Cartesian path %.2f%% achieved", fraction * 100.0);
 
+    // Prepare to display the trajectory
+    start_state.joint_state.name.insert( start_state.joint_state.name.end(), trajectory.joint_trajectory.joint_names.begin(), trajectory.joint_trajectory.joint_names.end() );
+    // Add the joints to the initial state
+    std::vector<double> initial_joints = arm_datas_.at(arm_index).move_group_ptr -> getCurrentJointValues();
+    start_state.joint_state.position.insert( start_state.joint_state.position.end(), initial_joints.begin(), initial_joints.end() );
+
     display_trajectory.trajectory.push_back(trajectory);
-    display_publisher.publish(display_trajectory);
   }
+
+  display_trajectory.trajectory_start = start_state;
+  display_publisher.publish(display_trajectory);
+  // This sleep seems to be necessary to visualize the trajectories reliably
+  ros::Duration(0.1).sleep();
 }
 
 // If user inputs new text, update the pose data
