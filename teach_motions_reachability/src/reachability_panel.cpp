@@ -73,7 +73,10 @@ void ReachabilityPanel::previewTrajectory()
     // 1) Transform current_pose to frame of the data
     // 2) Adjust the transform: add the offset and apply the rotation to get target_pose
     // 3) Transform back to the MoveGroup planning frame
-    // Yep, this could be simplified.
+    
+    // Yep, this could be simplified as follows:
+    // A) Transform the incoming change_in_pose to the MoveGroup planning frame
+    // B) Apply change_in_pose to current_pose (which is already in the MoveGroup planning frame) 
 
 
     // Transform current_pose to the frame of the data

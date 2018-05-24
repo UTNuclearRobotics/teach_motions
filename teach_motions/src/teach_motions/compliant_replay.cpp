@@ -51,7 +51,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_
   spinner_.start();
 
   // Listen to the jog_arm warning topic. Exit if the jogger stops
-  jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/halted", 1, &CompliantReplay::haltCB, this);
+  jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
 
   // Datafile name
   datafile_ = get_ros_params::getStringParam("teach_motions/filename", n_);
