@@ -37,19 +37,8 @@
 
 #include "teach_motions/compliant_replay.h"
 
-int main(int argc, char** argv)
+compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
 {
-  ros::init(argc, argv, "compliant_replay");
-
-  compliant_replay::CompliantReplay replay_it;
-
-  return 0;
-}
-
-compliant_replay::CompliantReplay::CompliantReplay() : spinner_(1), tf_listener_(tf_buffer_)
-{
-  spinner_.start();
-
   // Listen to the jog_arm warning topic. Exit if the jogger stops
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
 

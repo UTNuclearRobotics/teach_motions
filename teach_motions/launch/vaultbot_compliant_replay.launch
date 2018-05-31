@@ -8,6 +8,6 @@
 
   <rosparam command="load" file="$(find teach_motions)/cfg/$(arg filename).yaml" />
 
-  <node name="compliant_replay" pkg="teach_motions" type="compliant_replay" output="screen" />
+  <node name="compliant_replay_server" pkg="teach_motions" type="compliant_replay_server" output="screen" />
 
 </launch>

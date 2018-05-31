@@ -36,8 +36,8 @@
 // spring
 // when pushed.
 
-#ifndef COMPLIANCE_REPLAY_H
-#define COMPLIANCE_REPLAY_H
+#ifndef COMPLIANT_REPLAY_H
+#define COMPLIANT_REPLAY_H
 
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -121,8 +121,6 @@ private:
   int num_arms_ = 1;
 
   ros::NodeHandle n_;
-
-  ros::AsyncSpinner spinner_;
 
   ros::Subscriber jog_arm_warning_sub_;
 

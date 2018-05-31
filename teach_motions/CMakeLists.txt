@@ -5,6 +5,7 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
   jog_arm
+  message_generation
   roscpp
   rospy
   std_msgs
@@ -12,8 +13,18 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
 )
 
+add_service_files(
+  FILES
+  RequestMotion.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 catkin_package(
- CATKIN_DEPENDS jog_arm tf tf2_geometry_msgs
+ CATKIN_DEPENDS jog_arm std_msgs tf tf2_geometry_msgs
 )
 
 include_directories(
@@ -21,9 +32,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(compliant_replay src/teach_motions/compliant_replay.cpp src/teach_motions/get_ros_params.cpp)
-add_dependencies(compliant_replay ${catkin_EXPORTED_TARGETS})
-target_link_libraries(compliant_replay ${catkin_LIBRARIES})
+add_executable(compliant_replay_server src/teach_motions/compliant_replay_server.cpp src/teach_motions/compliant_replay.cpp src/teach_motions/get_ros_params.cpp)
+target_link_libraries(compliant_replay_server ${catkin_LIBRARIES})
+add_dependencies(compliant_replay_server teach_motions_gencpp)
 
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

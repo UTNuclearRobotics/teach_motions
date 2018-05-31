@@ -12,6 +12,8 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>jog_arm</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
