@@ -1,0 +1,9 @@
+<library path="lib/libteach_motions_gui">
+  <class name="teach_motions_gui/TeachMotions"
+         type="teach_motions_gui::TeachMotionsPanel"
+         base_class_type="rviz::Panel">
+    <description>
+      Interact with saved trajectories.
+    </description>
+  </class>
+</library>

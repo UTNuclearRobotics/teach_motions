@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(teach_motions_reachability)
+project(teach_motions_gui)
 
 add_compile_options(-std=c++11)
 
@@ -40,7 +40,7 @@ set(SRC_FILES
 
 ## An rviz plugin is just a shared library, so here we declare the
 ## library to be called ``${PROJECT_NAME}`` (which is
-## "teach_motions_reachability", or whatever your version of this project
+## "teach_motions_gui", or whatever your version of this project
 ## is called) and specify the list of source files we collected above
 ## in ``${SRC_FILES}``.
 add_library(${PROJECT_NAME} ${SRC_FILES})
@@ -50,9 +50,9 @@ add_library(${PROJECT_NAME} ${SRC_FILES})
 ## ``set(QT_LIBRARIES Qt5::Widgets)``, and with whatever libraries
 ## catkin has included.
 ##
-## Although this puts "teach_motions_reachability" as the name of the library, cmake knows it is a
+## Although this puts "teach_motions_gui" as the name of the library, cmake knows it is a
 ## library and names the actual file something like
-## "libteach_motions_reachability.so", or whatever is appropriate for your
+## "libteach_motions_gui.so", or whatever is appropriate for your
 ## particular OS.
 target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 

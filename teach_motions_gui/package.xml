@@ -1,5 +1,5 @@
 <package>
-  <name>teach_motions_reachability</name>
+  <name>teach_motions_gui</name>
   <version>0.0.0</version>
   <description>
      Show whether a saved trajectory is reachable.

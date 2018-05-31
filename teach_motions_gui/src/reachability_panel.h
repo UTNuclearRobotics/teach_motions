@@ -1,5 +1,5 @@
-#ifndef REACHABILITY_PANEL_H
-#define REACHABILITY_PANEL_H
+#ifndef TEACH_MOTIONS_PANEL_H
+#define TEACH_MOTIONS_PANEL_H
 
 #ifndef Q_MOC_RUN
 
@@ -27,7 +27,7 @@
 
 class QLineEdit;
 
-namespace teach_motions_reachability
+namespace teach_motions_gui
 {
 
 struct arm_pose_info {
@@ -37,7 +37,7 @@ struct arm_pose_info {
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_ptr;
 };
 
-class ReachabilityPanel: public rviz::Panel
+class TeachMotionsPanel: public rviz::Panel
 {
 // This class uses Qt slots and is a subclass of QObject, so it needs
 // the Q_OBJECT macro.
@@ -50,7 +50,7 @@ public:
   // a default of 0 lets the default constructor work and also lets
   // someone using the class for something else to pass in a parent
   // widget as they normally would with Qt.
-  ReachabilityPanel( QWidget* parent = 0 );
+  TeachMotionsPanel( QWidget* parent = 0 );
 
   // Now we declare overrides of rviz::Panel functions for saving and
   // loading data from the config file.  Here the data is the
@@ -87,7 +87,7 @@ protected:
 
   // Pairs of arm indexes and PoseStampeds.
   // There may be 2 arms or just one, and the order isn't certain.
-  std::vector< teach_motions_reachability::arm_pose_info > arm_datas_;
+  std::vector< teach_motions_gui::arm_pose_info > arm_datas_;
 
   // Preview trajectory button
   QPushButton* preview_button_;
@@ -98,6 +98,6 @@ protected:
   tf::TransformListener listener_;
 };
 
-} // end namespace teach_motions_reachability
+} // end namespace teach_motions_gui
 
-#endif // REACHABILITY_PANEL_H
+#endif // TEACH_MOTIONS_PANEL_H

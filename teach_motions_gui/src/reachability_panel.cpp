@@ -1,9 +1,9 @@
 #include "reachability_panel.h"
 
-namespace teach_motions_reachability
+namespace teach_motions_gui
 {
 
-// Here is the implementation of the ReachabilityPanel class.  ReachabilityPanel
+// Here is the implementation of the TeachMotionsPanel class.  TeachMotionsPanel
 // has these responsibilities:
 //
 // - Act as a container for GUI elements.
@@ -12,7 +12,7 @@ namespace teach_motions_reachability
 // We start with the constructor, doing the standard Qt thing of
 // passing the optional *parent* argument on to the superclass
 // constructor
-ReachabilityPanel::ReachabilityPanel( QWidget* parent )
+TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
   : rviz::Panel( parent ), spinner_(1)
 {
   // Next we lay out the "file_prefix" text entry field using a
@@ -43,7 +43,7 @@ ReachabilityPanel::ReachabilityPanel( QWidget* parent )
 // results.  This is connected to QLineEdit::editingFinished() which
 // fires when the user presses Enter or Tab or otherwise moves focus
 // away.
-void ReachabilityPanel::updateFilePrefix()
+void TeachMotionsPanel::updateFilePrefix()
 {
   readChangeInPose( file_prefix_editor_->text() );
 
@@ -52,7 +52,7 @@ void ReachabilityPanel::updateFilePrefix()
 }
 
 // Preview the trajectory when clicked.
-void ReachabilityPanel::previewTrajectory()
+void TeachMotionsPanel::previewTrajectory()
 {
   // Preview for each arm:
   // Get the current pose, add the change in pose from the datafile.
@@ -146,7 +146,7 @@ void ReachabilityPanel::previewTrajectory()
 }
 
 // If user inputs new text, update the pose data
-void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
+void TeachMotionsPanel::readChangeInPose( const QString& new_file_prefix )
 {
   // Only take action if the filename has changed.
   if( new_file_prefix != file_prefix_ )
@@ -249,14 +249,14 @@ void ReachabilityPanel::readChangeInPose( const QString& new_file_prefix )
 // Save all configuration data from this panel to the given
 // Config object.  It is important here that you call save()
 // on the parent class so the class id and panel name get saved.
-void ReachabilityPanel::save( rviz::Config config ) const
+void TeachMotionsPanel::save( rviz::Config config ) const
 {
   rviz::Panel::save( config );
   config.mapSetValue( "FilePrefix", file_prefix_ );
 }
 
 // Load all configuration data for this panel from the given Config object.
-void ReachabilityPanel::load( const rviz::Config& config )
+void TeachMotionsPanel::load( const rviz::Config& config )
 {
   rviz::Panel::load( config );
   QString file_prefix;
@@ -267,10 +267,10 @@ void ReachabilityPanel::load( const rviz::Config& config )
   }
 }
 
-} // end namespace teach_motions_reachability
+} // end namespace teach_motions_gui
 
 // Tell pluginlib about this class.  Every class which should be
 // loadable by pluginlib::ClassLoader must have these two lines
 // compiled in its .cpp file, outside of any namespace scope.
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(teach_motions_reachability::ReachabilityPanel,rviz::Panel )
+PLUGINLIB_EXPORT_CLASS(teach_motions_gui::TeachMotionsPanel,rviz::Panel )
