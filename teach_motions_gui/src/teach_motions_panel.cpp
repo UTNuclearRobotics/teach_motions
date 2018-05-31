@@ -169,7 +169,7 @@ void TeachMotionsPanel::executeTrajectory()
   // system() is bad practice, but loading parameters otherwise is tough.
   // Would need to parse the yaml file and load them individually.
   // & afterward forks the process (not block the GUI)
-  std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch filename:=" + file_prefix_.toStdString() +" &" ).c_str() );
+  std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch file_prefix:=" + file_prefix_.toStdString() +" &" ).c_str() );
 
   // Make the service call
   teach_motions::RequestMotion srv;
@@ -184,7 +184,7 @@ void TeachMotionsPanel::executeTrajectory()
 // If user inputs new text, update the pose data
 void TeachMotionsPanel::readChangeInPose( const QString& new_file_prefix )
 {
-  // Only take action if the filename has changed.
+  // Only take action if the file_prefix has changed.
   if( new_file_prefix != file_prefix_ )
   {
     file_prefix_ = new_file_prefix;

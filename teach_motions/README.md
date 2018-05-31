@@ -2,12 +2,12 @@
 
 Save robot pose info when the robot is moved:
 
-`roslaunch teach_motions robotname_teach_motions.launch filename:=cabinet_door1`
+`roslaunch teach_motions robotname_teach_motions.launch file_prefix:=cabinet_door1`
 
 
 Fit the pose datapoints with splines, take regularly-spaced derivatives, and save that derivative data into the /data folder:
 
-`roslaunch teach_motions robotname_postprocess.launch filename:=cabinet_door1`
+`roslaunch teach_motions robotname_postprocess.launch file_prefix:=cabinet_door1`
 
 
 Prepare to send the recorded trajectories to robot(s):
@@ -16,7 +16,7 @@ Prepare to send the recorded trajectories to robot(s):
 
 Load the parameters of the motion:
 
-`roslaunch teach_motions robotname_set_parameters.launch filename:=cabinet_door1`
+`roslaunch teach_motions robotname_set_parameters.launch file_prefix:=cabinet_door1`
 
 Make a service call to actually trigger the motion:
 

@@ -2,12 +2,12 @@
 
   <!-- This launch file simply loads the correct parameters to the ROS server -->
 
-  <arg name="filename" />
+  <arg name="file_prefix" />
 
-  <rosparam param="teach_motions/filename" subst_value="True">
-    $(arg filename)
+  <rosparam param="teach_motions/file_prefix" subst_value="True">
+    $(arg file_prefix)
   </rosparam>
 
-  <rosparam command="load" file="$(find teach_motions)/cfg/$(arg filename).yaml" />
+  <rosparam command="load" file="$(find teach_motions)/cfg/$(arg file_prefix).yaml" />
 
 </launch>

@@ -43,7 +43,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
 
   // Datafile name
-  datafile_ = get_ros_params::getStringParam("teach_motions/filename", n_);
+  datafile_ = get_ros_params::getStringParam("teach_motions/file_prefix", n_);
 
   setup();
 
