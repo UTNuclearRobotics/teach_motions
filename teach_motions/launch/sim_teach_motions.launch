@@ -1,7 +1,0 @@
-<launch>
-
-  <rosparam command="load" file="$(find teach_motions)/cfg/sim.yaml" />
-
-  <node name="teach_motions" pkg="teach_motions" type="teach_motions" output="screen" />
-
-</launch>

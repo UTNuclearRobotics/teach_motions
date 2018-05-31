@@ -5,35 +5,20 @@
   <!--                             -->
 
 	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_right_jog_settings.yaml" ns="right_arm" />
-	<node name="right_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
+	<node name="teach_motions_right_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
 	    <param name="parameter_ns" type="string" value="right_arm" /> 
 	</node>
 
 	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_left_jog_settings.yaml" ns="left_arm" />
-	<node name="left_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
+	<node name="teach_motions_left_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
 	    <param name="parameter_ns" type="string" value="left_arm" /> 
 	</node>
 
 
-  <!--                                      -->
-  <!-- For quick testing of the arm jogging -->
-  <!--                                      -->
-<!--
-  <node name="spacenav" pkg="spacenav_node" type="spacenav_node" />
-  <node name="spacenav_to_twist" pkg="teach_motions" type="spacenav_to_twist.py" >
-    <remap from="jog_arm_server/delta_jog_cmds" to="jog_arm_server/left_arm/delta_jog_cmds" />
-  </node>
--->
+  <!--                                       -->
+  <!-- The replay server waits for a request -->
+  <!--                                       -->
 
-  <!--                                              -->
-  <!-- Read the datafiles and send jogging messages -->
-  <!--                                              -->
-
-  <rosparam command="load" file="$(find teach_motions)/cfg/$(arg filename).yaml" >
-    <arg name="filename" />
-  </rosparam>
-
-  <!-- Typically run this separately after the jogging nodes have time to initialize -->
-<!--  <node name="replay" pkg="teach_motions" type="replay" output="screen" /> -->
+  <node name="compliant_replay_server" pkg="teach_motions" type="compliant_replay_server" output="screen" />
 
 </launch>

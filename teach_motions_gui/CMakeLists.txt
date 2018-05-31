@@ -6,6 +6,7 @@ add_compile_options(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
  moveit_ros_move_group
  rviz
+ teach_motions  # Trigger motions with a srv from this package
 )
 catkin_package()
 include_directories(${catkin_INCLUDE_DIRS})
@@ -35,7 +36,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 ## Here we specify the list of source files.
 ## The generated MOC files are included automatically as headers.
 set(SRC_FILES
-  src/reachability_panel.cpp
+  src/teach_motions_panel.cpp
 )
 
 ## An rviz plugin is just a shared library, so here we declare the
