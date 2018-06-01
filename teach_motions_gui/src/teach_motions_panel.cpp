@@ -13,7 +13,7 @@ namespace teach_motions_gui
 // passing the optional *parent* argument on to the superclass
 // constructor
 TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
-  : rviz::Panel( parent ), spinner_(3)
+  : rviz::Panel( parent ), spinner_(2)
 {
   // Next we lay out the "file_prefix" text entry field using a
   // QLabel and a QLineEdit in a QHBoxLayout.
@@ -57,9 +57,14 @@ void TeachMotionsPanel::updateFilePrefix()
 {
   readChangeInPose( file_prefix_editor_->text() );
 
-  // Only enable these buttons if the user gave a filepath
-  preview_button_ -> setEnabled( file_prefix_editor_->text() != "" );
-  execute_button_ -> setEnabled( file_prefix_editor_->text() != "" );
+  // Only enable these buttons if a datafile was found for an arm
+  std::string path = ros::package::getPath("teach_motions");
+  std::ifstream file1( path + "/data/net_motion/" + file_prefix_.toStdString() + "_arm0_net_motion.csv" );
+  std::ifstream file2( path + "/data/net_motion/" + file_prefix_.toStdString() + "_arm1_net_motion.csv" );  
+  if ( file1.fail() && file2.fail() )
+    disableButtons();
+  else  // at least 1 valid datafile
+    enableButtons();
 }
 
 // Slot to preview the trajectory when clicked.
@@ -168,17 +173,19 @@ void TeachMotionsPanel::executeTrajectory()
 
   // system() is bad practice, but loading parameters otherwise is tough.
   // Would need to parse the yaml file and load them individually.
-  // & afterward forks the process (not block the GUI)
-  std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch file_prefix:=" + file_prefix_.toStdString() +" &" ).c_str() );
+  std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch file_prefix:=" + file_prefix_.toStdString() ).c_str() );
+  ros::Duration(0.5).sleep();
 
   // Make the service call
   teach_motions::RequestMotion srv;
+  ROS_INFO_STREAM("[TeachMotionsPanel] Sending a request for compliant motion.");
   srv.request.file_prefix.data = file_prefix_.toStdString();
 
   if (!compliant_replay_client_.call(srv))
     ROS_ERROR_STREAM("[TeachMotionsPanel] Failed to complete the service call.");
 
   enableButtons();
+  ROS_INFO_STREAM("[TeachMotionsPanel] Done with compliant motion request.");
 }
 
 // If user inputs new text, update the pose data
@@ -201,8 +208,8 @@ void TeachMotionsPanel::readChangeInPose( const QString& new_file_prefix )
       std::ifstream file( path + "/data/net_motion/" + file_prefix_.toStdString() + "_arm" + std::to_string(arm_index) + "_net_motion.csv" );
       if ( file.fail() )
       {
-        ROS_INFO_STREAM("No net_motion datafile found for arm " << arm_index);
-        continue;
+        ROS_INFO_STREAM("No net_motion datafile found for arm " << arm_index << ". Cannot preview.");
+        return;
       }
 
       // Record this arm's data in a member vector
