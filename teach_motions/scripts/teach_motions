@@ -369,15 +369,18 @@ class teach_motions:
       # Write net change in pose to datafile
       filepath = rospkg.RosPack().get_path('teach_motions')
       with open(filepath + '/data/net_motion/' + self.datafile_name + '_arm' + str(arm_index) + '_net_motion.csv', 'w') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["X [m]", "Y [m]", "Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]"])
+        # Use the Linux line termination
+        writer = csv.writer(csvfile, lineterminator="\n")
+        writer.writerow(["X [m]", "Y [m]", "Z [m]", "Roll [deg]", "Pitch [deg]", "Yaw [deg]", "MoveGroup", "Frame"])
         writer.writerow([
           current_pose.pose.position.x - self.ini_pose[arm_index].pose.position.x,
           current_pose.pose.position.y - self.ini_pose[arm_index].pose.position.y,
           current_pose.pose.position.z - self.ini_pose[arm_index].pose.position.z,
           (final_orient[0] - ini_orient[0])*180/3.14159,
           (final_orient[1] - ini_orient[1])*180/3.14159,
-          (final_orient[2] - ini_orient[2])*180/3.14159
+          (final_orient[2] - ini_orient[2])*180/3.14159,
+          self.movegroup_names[arm_index],
+          self.ee_frame_names[arm_index]
           ])
 
       # Clear the stored values before collecting more data on the next arm

@@ -13,7 +13,7 @@ namespace teach_motions_gui
 // passing the optional *parent* argument on to the superclass
 // constructor
 TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
-  : rviz::Panel( parent ), spinner_(2)
+  : rviz::Panel( parent ), spinner_(1)
 {
   // Next we lay out the "file_prefix" text entry field using a
   // QLabel and a QLineEdit in a QHBoxLayout.
@@ -99,16 +99,21 @@ void TeachMotionsPanel::previewTrajectory()
 
 
     // Transform current_pose to the frame of the data
+    ROS_WARN_STREAM("Transforming to data frame.");
+    //if ( arm_datas_.at(arm_index).frame_id[0] != '/' )
+    //  arm_datas_.at(arm_index).frame_id.insert(0, "/");
     try
     {
-      listener_.waitForTransform(current_pose.header.frame_id, arm_datas_.at(arm_index).frame_id, ros::Time::now(), ros::Duration(0.2));
-      listener_.transformPose(arm_datas_.at(arm_index).frame_id, current_pose, current_pose);
+      listener_.waitForTransform(current_pose.header.frame_id, arm_datas_.at(arm_index).frame_id, ros::Time::now(), ros::Duration(.2));
+      // This works for "right_ur5_ee_link" being hard-coded
+      listener_.transformPose( arm_datas_[arm_index].frame_id, current_pose, current_pose );
     }
     catch (tf::TransformException ex)
     {
       ROS_ERROR_STREAM("teach_motions_panel: " << ex.what());
       return;
     }
+    ROS_WARN_STREAM("Done transforming to data frame.");
 
     // Calculate the new target_pose
     geometry_msgs::PoseStamped target_pose;
@@ -130,6 +135,11 @@ void TeachMotionsPanel::previewTrajectory()
     //ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
 
     // Transform back to the planning frame before sending the command
+    ROS_WARN_STREAM("Transforming back to planning frame.");
+    // Check for a leading "/" in tf frame
+    if ( target_pose.header.frame_id[0] != '/' )
+      target_pose.header.frame_id.insert(0, "/");
+    ROS_WARN_STREAM( target_pose.header.frame_id );
     try
     {
       listener_.waitForTransform(target_pose.header.frame_id, arm_datas_.at(arm_index).move_group_ptr -> getPlanningFrame(), ros::Time::now(), ros::Duration(0.2));
@@ -275,7 +285,7 @@ void TeachMotionsPanel::readChangeInPose( const QString& new_file_prefix )
       arm_datas_.push_back( arm_info );
 
       //ROS_INFO_STREAM( arm_datas_.back().change_in_pose );
-      //ROS_INFO_STREAM( arm_datas_.back().frame_id );
+      //ROS_ERROR_STREAM( arm_datas_.back().frame_id );
       //ROS_INFO_STREAM( arm_datas_.back().move_group_name );
     }
 
