@@ -99,9 +99,7 @@ void TeachMotionsPanel::previewTrajectory()
 
 
     // Transform current_pose to the frame of the data
-    arm_datas_.at(arm_index).frame_id = "base_link";
-    arm_datas_.at(arm_index).change_in_pose.header.frame_id = "base_link";
-
+    ROS_WARN_STREAM("Transforming to data frame, should equal EE frame: " << arm_datas_.at(arm_index).frame_id);
     try
     {
       listener_.waitForTransform(current_pose.header.frame_id, arm_datas_.at(arm_index).frame_id, ros::Time::now(), ros::Duration(.2));
@@ -112,6 +110,8 @@ void TeachMotionsPanel::previewTrajectory()
       ROS_ERROR_STREAM("teach_motions_panel: " << ex.what());
       return;
     }
+    // This looks fine (0,0,0),(0,0,0,1)
+    ROS_WARN_STREAM(current_pose);
 
     // Calculate the new target_pose
     geometry_msgs::PoseStamped target_pose;
@@ -125,6 +125,7 @@ void TeachMotionsPanel::previewTrajectory()
     quaternionMsgToTF(arm_datas_.at(arm_index).change_in_pose.pose.orientation, q_incremental);
     q_final = q_incremental*q_current;
     quaternionTFToMsg(q_final, target_pose.pose.orientation);
+    ROS_ERROR_STREAM(target_pose);
 
     // For debugging, it's helpful to display RPY
     //tf::Matrix3x3 m(q_incremental);
@@ -133,8 +134,7 @@ void TeachMotionsPanel::previewTrajectory()
     //ROS_INFO_STREAM( "Roll: " << roll*180/3.14159 << ", Pitch: " << pitch*180/3.14159 << ", Yaw: " << yaw*180/3.14159 );
 
     // Transform back to the planning frame before sending the command
-/*
-    ROS_WARN_STREAM("Transforming back to planning frame.");
+    ROS_INFO_STREAM("Transforming back to planning frame.");
     // Check for a leading "/" in tf frame
     if ( target_pose.header.frame_id[0] != '/' )
       target_pose.header.frame_id.insert(0, "/");
@@ -149,7 +149,7 @@ void TeachMotionsPanel::previewTrajectory()
       ROS_ERROR_STREAM("teach_motions_panel: " << ex.what());
       return;
     }
-*/
+    ROS_INFO_STREAM(target_pose);
 
     // Plan to the new target pose
     waypoints.push_back( target_pose.pose );
