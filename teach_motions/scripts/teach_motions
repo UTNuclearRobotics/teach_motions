@@ -76,6 +76,7 @@ class teach_motions:
     self.joint_positions = []
     self.joint_difference_threshold = 0.0001 # Count a jt difference >this as "in motion"
     self.ini_pose = []
+    self.ini_planning_to_ee_frame_tf = []
     self.joint_names = []
 
     # Store poses in these variables before writing to spreadsheet
@@ -198,11 +199,14 @@ class teach_motions:
       # Initialize prev_jts
       self.prev_jts = deepcopy(self.joint_positions)
 
-      # Sometimes the initial get_current_pose returns garbage. Flush it out.
+      # Sometimes the initial get_current_pose() returns garbage. Flush it out.
       group.get_current_pose()
 
-      # Wait for the human to start moving the robot
       self.ini_pose.append( group.get_current_pose() )
+      source_frame = self.tf_buffer.lookup_transform( self.ee_frame_names[arm_index], group.get_planning_frame().strip("/"), rospy.Time(0), rospy.Duration(1.))
+      self.ini_planning_to_ee_frame_tf.append( source_frame )
+
+      # Wait for the human to start moving the robot
       linear_motion_threshold = 0.01  # Count as moving if motion is >this [m]
       quat_motion_threshold = 0.02  # Count as moving if motion is >this [rad]
       d = rospy.Duration(0.01, 0)
@@ -342,6 +346,9 @@ class teach_motions:
       self.save_to_csv(arm_index)
 
       # Prepare to print some useful info
+      self.ini_pose[arm_index] = tf2_geometry_msgs.do_transform_pose(self.ini_pose[arm_index], self.ini_planning_to_ee_frame_tf[arm_index])
+      current_pose = tf2_geometry_msgs.do_transform_pose(current_pose, self.ini_planning_to_ee_frame_tf[arm_index])
+
       ini_orient = tf.transformations.euler_from_quaternion([
         self.ini_pose[arm_index].pose.orientation.x,
         self.ini_pose[arm_index].pose.orientation.y,
@@ -366,7 +373,7 @@ class teach_motions:
       rospy.loginfo("Yaw: " + str( (final_orient[2] - ini_orient[2])*180/3.14159) + " deg" )
       rospy.loginfo("--------------------------------------------------------")
 
-      # Write net change in pose to datafile
+      # Write net change in pose to datafile. Use the EE frame      
       filepath = rospkg.RosPack().get_path('teach_motions')
       with open(filepath + '/data/net_motion/' + self.datafile_name + '_arm' + str(arm_index) + '_net_motion.csv', 'w') as csvfile:
         # Use the Linux line termination
