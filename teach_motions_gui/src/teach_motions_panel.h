@@ -11,6 +11,7 @@
 #include <ros/ros.h>
 #include <rviz/panel.h>
 #include <stdio.h>
+#include <sensor_msgs/JointState.h>
 #include <string.h>
 #include <teach_motions/RequestMotion.h>
 #include <tf/tf.h>
@@ -85,6 +86,13 @@ protected:
   void disableButtons();
   void enableButtons();
 
+  void jointStatesCallback(const sensor_msgs::JointState::ConstPtr& msg)
+  {
+    joint_states_.name = msg->name;
+    joint_states_.position = msg->position;
+  }
+  sensor_msgs::JointState joint_states_;
+
   // One-line text editor for entering the datafile name.
   QLineEdit* file_prefix_editor_;
 
@@ -107,6 +115,9 @@ protected:
   ros::ServiceClient compliant_replay_client_;
 
   tf::TransformListener listener_;
+
+  // Need this joint_states msg to display trajectories properly
+  ros::Subscriber joint_states_sub_;
 };
 
 } // end namespace teach_motions_gui

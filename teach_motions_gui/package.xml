@@ -2,7 +2,7 @@
   <name>teach_motions_gui</name>
   <version>0.0.0</version>
   <description>
-     Show whether a saved trajectory is reachable.
+     Display a saved trajectory is reachable.
   </description>
   <maintainer email="andyz@utexas.edu">Andy Zelenak</maintainer>
   <license>BSD</license>

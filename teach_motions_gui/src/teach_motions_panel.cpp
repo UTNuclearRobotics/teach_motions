@@ -46,6 +46,8 @@ TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
 
   compliant_replay_client_ = nh_.serviceClient<teach_motions::RequestMotion>("compliant_replay");
 
+  joint_states_sub_ = nh_.subscribe("joint_states", 1, &TeachMotionsPanel::jointStatesCallback, this);
+
   spinner_.start();
 }
 
@@ -80,8 +82,6 @@ void TeachMotionsPanel::previewTrajectory()
 
   ros::Publisher display_publisher = nh_.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
   moveit_msgs::DisplayTrajectory display_trajectory;
-  // The display requires this start state
-  moveit_msgs::RobotState start_state;
 
   for (int arm_index=0; arm_index<arm_datas_.size(); arm_index++)
   {
@@ -153,14 +153,25 @@ void TeachMotionsPanel::previewTrajectory()
 
     ROS_INFO("Cartesian path %.2f%% achieved", fraction * 100.0);
 
+    display_trajectory.trajectory.push_back(trajectory);
+
+/*
     // Prepare to display the trajectory
     start_state.joint_state.name.insert( start_state.joint_state.name.end(), trajectory.joint_trajectory.joint_names.begin(), trajectory.joint_trajectory.joint_names.end() );
+
     // Add the joints to the initial state
     std::vector<double> initial_joints = arm_datas_.at(arm_index).move_group_ptr -> getCurrentJointValues();
     start_state.joint_state.position.insert( start_state.joint_state.position.end(), initial_joints.begin(), initial_joints.end() );
-
-    display_trajectory.trajectory.push_back(trajectory);
+*/
   }
+
+  // The display requires this start state
+  moveit_msgs::RobotState start_state;
+  // Get current joint state from /joint_states topic.
+  // Wait, if needed
+  while( joint_states_.name.size()==0 )
+    ros::Duration(0.05).sleep();
+  start_state.joint_state = joint_states_;
 
   display_trajectory.trajectory_start = start_state;
   display_publisher.publish(display_trajectory);
