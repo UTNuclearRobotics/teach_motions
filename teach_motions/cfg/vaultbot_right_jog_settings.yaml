@@ -1,6 +1,6 @@
 jog_arm_server:
   simulation: false # Whether the robot is started in simulation environment
-  collision_check: false # Check collisions?
+  collision_check: true # Check collisions?
   command_in_topic:  jog_arm_server/right_arm/delta_jog_cmds
   command_frame:  right_ur5_ee_link  # TF frame that incoming cmds are given in
   incoming_command_timeout:  5  # Stop jogging if X seconds elapse without a new cmd
