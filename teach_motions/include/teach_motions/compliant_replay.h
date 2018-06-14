@@ -139,7 +139,7 @@ private:
 
   // Compliance for each arm
   std::vector<compliant_control::CompliantControl> compliance_objects_;
-  std::vector<compliantEnum::exitCondition> compliance_status_;
+  std::vector<compliant_control::exitCondition> compliance_status_;
 
   // Subscribe to force/torque topics
   // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.

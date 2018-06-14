@@ -90,7 +90,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
       velocity_pubs_[arm_index].publish(jog_cmd);
 
       // Set the flag if a force or torque limit is reached
-      if ( (compliance_status_[arm_index] == compliantEnum::FT_VIOLATION) || (compliance_status_[arm_index] == compliantEnum::CONDITION_MET) )
+      if ( (compliance_status_[arm_index] == compliant_control::FT_VIOLATION) || (compliance_status_[arm_index] == compliant_control::CONDITION_MET) )
         force_or_torque_limit_ = true;
     }
 
@@ -170,7 +170,7 @@ void compliant_replay::CompliantReplay::setup()
     velocity_pubs_.push_back( pub );
 
     // Initially, have not achieved the desired force/torque, so enable compliant motion.
-    compliance_status_.push_back( compliantEnum::CONDITION_NOT_MET );
+    compliance_status_.push_back( compliant_control::CONDITION_NOT_MET );
 
     // Customize the compliance parameters
     setComplianceParams( arm_index );
