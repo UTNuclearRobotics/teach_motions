@@ -406,7 +406,7 @@ class teach_motions:
       writer = csv.writer(csvfile)
 
       # Write column titles
-      writer.writerow(["Time", "X_dot", "Y_dot", "Z_dot", "Roll_dot", "Pitch_dot", "Yaw_dot"])
+      writer.writerow(["Time", "deltaX [m]", "deltaY [m]", "deltaZ [m]", "deltaRoll [rad]", "deltaPitch [rad]", "deltaYaw [rad]"])
 
       for t,x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot in zip( self.time_history,
         self.x_dot_history,

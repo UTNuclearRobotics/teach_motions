@@ -1,5 +1,5 @@
 jog_arm_server:
-  simulation: false # Whether the robot is started in simulation environment
+  gazebo: false # Whether the robot is started in simulation environment
   collision_check: true # Check collisions?
   command_in_topic:  jog_arm_server/left_arm/delta_jog_cmds
   command_frame:  left_ur5_ee_link  # TF frame that incoming cmds are given in

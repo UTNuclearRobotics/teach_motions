@@ -272,17 +272,19 @@ class process_pose_data:
         self.incoming_times[arm_index][i] = timescale * float(self.incoming_times[arm_index][i])
 
       # There's some extra BS here to convert to floats
-      x_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_x[arm_index], k=5)
+      spline_degree = 1 # should be 1 =< k <= 5
+      smoothing_factor = 0.1 # should be >0
+      x_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_x[arm_index], k=spline_degree, s=0)
 
-      y_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_y[arm_index], k=5)
+      y_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_y[arm_index], k=spline_degree, s=0)
 
-      z_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_z[arm_index], k=5)
+      z_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.incoming_z[arm_index], k=spline_degree, s=0)
 
-      roll_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_roll[arm_index], k=5)
+      roll_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_roll[arm_index], k=spline_degree, s=0)
 
-      pitch_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_pitch[arm_index], k=5)
+      pitch_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_pitch[arm_index], k=spline_degree, s=0)
 
-      yaw_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_yaw[arm_index], k=5)
+      yaw_dot = UnivariateSpline([float(i) for i in self.incoming_times[arm_index]], self.wrapped_yaw[arm_index], k=spline_degree, s=0)
 
       # Fill the outgoing data lists with derivative approximations
       self.outgoing_times = np.linspace(0, float(self.incoming_times[arm_index][-1]), float(self.incoming_times[arm_index][-1]) / self.interpolation_timestep )
