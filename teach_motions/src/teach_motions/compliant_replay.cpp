@@ -43,7 +43,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
 
   // Datafile name
-  datafile_ = get_ros_params::getStringParam("teach_motions/file_prefix", n_);
+  input_file_ = get_ros_params::getStringParam("teach_motions/file_prefix", n_);
 
   setup();
 
@@ -58,6 +58,20 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
 
   int datapoint = 0;
   std::vector<double> velocity_nominal{0., 0., 0., 0., 0., 0.}, velocity_out{0., 0., 0., 0., 0., 0.};
+
+  // Record data to csv file for future analysis
+  std::ofstream replay_datafile;
+  std::string path = ros::package::getPath("teach_motions");
+  replay_datafile.open( path + "/data/log.csv" );
+  std::string output_data_line;
+  // Write a description of this datafile
+  output_data_line = "This file saves data from the most recent trajectory.\n";
+  replay_datafile << output_data_line;
+  output_data_line.clear();
+  // Write descriptive column headers
+  output_data_line = "x_nom_vel,y_nom_vel,z_nom_vel,roll_nom_vel,pitch_nom_vel,yaw_nom_vel,x_compl_vel,y_compl_vel,z_compl_vel,roll_compl_vel,pitch_compl_vel,yaw_compl_vel,Fx,Fy,Fz,Tx,Ty,Tz\n";
+  replay_datafile << output_data_line;
+  output_data_line.clear();
 
   while (ros::ok() && !jog_is_halted_ && !force_or_torque_limit_ && datapoint < arm_data_objects_[0].times_.size() )
   {
@@ -80,6 +94,7 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
       // Send cmds to the robot(s)
       jog_cmd.header.frame_id = arm_data_objects_[arm_index].jog_command_frame_;
       jog_cmd.header.stamp = ros::Time::now();
+
       jog_cmd.twist.linear.x = velocity_out[0];
       jog_cmd.twist.linear.y = velocity_out[1];
       jog_cmd.twist.linear.z = velocity_out[2];
@@ -92,11 +107,40 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
       // Set the flag if a force or torque limit is reached
       if ( (compliance_status_[arm_index] == compliant_control::FT_VIOLATION) || (compliance_status_[arm_index] == compliant_control::CONDITION_MET) )
         force_or_torque_limit_ = true;
-    }
 
+      // Save data for this arm at this timestep
+      output_data_line.append(
+        std::to_string(velocity_nominal[0]) + "," +
+        std::to_string(velocity_nominal[1]) + "," +
+        std::to_string(velocity_nominal[2]) + "," +
+        std::to_string(velocity_nominal[3]) + "," +
+        std::to_string(velocity_nominal[4]) + "," +
+        std::to_string(velocity_nominal[5]) + "," +
+        std::to_string(velocity_out[0]) + "," +
+        std::to_string(velocity_out[1]) + "," +
+        std::to_string(velocity_out[2]) + "," +
+        std::to_string(velocity_out[3]) + "," +
+        std::to_string(velocity_out[4]) + "," +
+        std::to_string(velocity_out[5]) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.force.x) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.force.y) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.force.z) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.torque.x) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.torque.y) + "," +
+        std::to_string(arm_data_objects_[arm_index].ft_data_.wrench.torque.z) + ","
+        );
+    }
+    // Terminate this line of data
+    output_data_line.append("\n");
+    replay_datafile << output_data_line;
+    output_data_line.clear();
+
+    // Go to the next line of datafile
     datapoint++;
     rate.sleep();
   }
+
+  replay_datafile.close();
 
   if (jog_is_halted_)
     ROS_WARN_NAMED("compliant_replay", "Jogging was halted. Singularity, joint "
@@ -209,15 +253,15 @@ void compliant_replay::CompliantReplay::readTraj()
   // Read vectors for each arm
   for (int arm_index=0; arm_index<num_arms_; arm_index++)
   {
-    std::ifstream file( path + "/data/" + datafile_ + "_arm" + std::to_string(arm_index) + "_processed.csv" );
+    std::ifstream input_file( path + "/data/" + input_file_ + "_arm" + std::to_string(arm_index) + "_processed.csv" );
 
     // Ignore the first line (headers)
-    getline( file, line);
+    getline( input_file, line);
 
-    while ( file.good() )
+    while ( input_file.good() )
     {
       // Read a whole line
-      getline( file, line);
+      getline( input_file, line);
 
       // Read each value
       std::stringstream ss(line);
@@ -288,7 +332,7 @@ void compliant_replay::CompliantReplay::setComplianceParams( int arm_index )
   std::string path = ros::package::getPath("teach_motions");
   std::string line, value;
 
-  std::ifstream file( path + "/data/stiffness/" + datafile_ + "_arm" + std::to_string(arm_index) + "_stiffness.csv" );
+  std::ifstream file( path + "/data/stiffness/" + input_file_ + "_arm" + std::to_string(arm_index) + "_stiffness.csv" );
 
   //For each line
   for (int i=0; i<6; i++)

@@ -4,6 +4,9 @@ project(teach_motions)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
+  actionlib
+  actionlib_msgs
+  genmsg
   jog_arm
   message_generation
   roscpp
@@ -13,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
 )
 
+add_action_files(DIRECTORY action FILES ReplayMotion.action)
+
 add_service_files(
   FILES
   RequestMotion.srv
@@ -20,6 +25,7 @@ add_service_files(
 
 generate_messages(
   DEPENDENCIES
+  actionlib_msgs
   std_msgs
 )
 

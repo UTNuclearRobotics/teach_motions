@@ -1,5 +1,7 @@
+#include <actionlib/server/simple_action_server.h>
 #include "ros/ros.h"
 #include "teach_motions/compliant_replay.h"
+#include <teach_motions/ReplayMotionAction.h>
 #include "teach_motions/RequestMotion.h"
 
 bool requestMotion(teach_motions::RequestMotion::Request  &req,

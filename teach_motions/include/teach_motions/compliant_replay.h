@@ -47,6 +47,7 @@
 #include <iostream>
 #include <ros/package.h>
 #include <ros/ros.h>
+#include <sstream>
 #include <teach_motions/get_ros_params.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
@@ -132,7 +133,7 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
 
-  std::string datafile_;
+  std::string input_file_;
 
   // Store the trajectory data for each arm
   std::vector<SingleArmData> arm_data_objects_;

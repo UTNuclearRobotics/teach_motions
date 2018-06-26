@@ -1,0 +1,7 @@
+# Goal
+std_msgs/String file_prefix
+---
+# Result
+std_msgs/Bool successful
+---
+# Feedback
