@@ -38,9 +38,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(compliant_replay_server src/teach_motions/compliant_replay_server.cpp src/teach_motions/compliant_replay.cpp src/teach_motions/get_ros_params.cpp)
-target_link_libraries(compliant_replay_server ${catkin_LIBRARIES})
-add_dependencies(compliant_replay_server teach_motions_gencpp)
+add_executable(compliant_replay src/teach_motions/compliant_replay.cpp src/teach_motions/get_ros_params.cpp)
+target_link_libraries(compliant_replay ${catkin_LIBRARIES})
+add_dependencies(compliant_replay teach_motions_gencpp)
 
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

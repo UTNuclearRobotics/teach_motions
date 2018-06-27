@@ -37,7 +37,9 @@
 
 #include "teach_motions/compliant_replay.h"
 
-compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
+compliant_replay::CompliantReplay::CompliantReplay() :
+  tf_listener_(tf_buffer_),
+  action_server_(n_, "replay_motion", boost::bind(&CompliantReplay::actionCB, this, _1), false)
 {
   // Listen to the jog_arm warning topic. Exit if the jogger stops
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
@@ -145,6 +147,14 @@ compliant_replay::CompliantReplay::CompliantReplay() : tf_listener_(tf_buffer_)
   if (jog_is_halted_)
     ROS_WARN_NAMED("compliant_replay", "Jogging was halted. Singularity, joint "
                                       "limit, or collision?");
+}
+
+// An action server goal triggers this
+void compliant_replay::CompliantReplay::actionCB(const teach_motions::ReplayMotionGoalConstPtr &goal)
+{
+  action_result_.successful.data = true;
+  if( action_result_.successful.data )
+    action_server_.setSucceeded( action_result_ );
 }
 
 // CB for halt warnings from the jog_arm nodes
@@ -353,4 +363,14 @@ void compliant_replay::CompliantReplay::setComplianceParams( int arm_index )
     }
   }
   file.close();
+}
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "compliant_replay");
+
+  compliant_replay::CompliantReplay compliant_replay();
+  ros::spin();
+
+  return 0;
 }

@@ -4,14 +4,14 @@
   <!-- Jogging nodes for both arms -->
   <!--                             -->
 
-	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_right_jog_settings.yaml" ns="right_arm" />
+	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_right_jog_settings.yaml" ns="right_teach_motions" />
 	<node name="teach_motions_right_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
-	    <param name="parameter_ns" type="string" value="right_arm" /> 
+	    <param name="parameter_ns" type="string" value="right_teach_motions" /> 
 	</node>
 
-	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_left_jog_settings.yaml" ns="left_arm" />
+	<rosparam command="load" file="$(find teach_motions)/cfg/vaultbot_left_jog_settings.yaml" ns="left_teach_motions" />
 	<node name="teach_motions_left_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
-	    <param name="parameter_ns" type="string" value="left_arm" /> 
+	    <param name="parameter_ns" type="string" value="left_teach_motions" /> 
 	</node>
 
 
