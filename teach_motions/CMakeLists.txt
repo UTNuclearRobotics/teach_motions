@@ -16,12 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
 )
 
-add_action_files(DIRECTORY action FILES ReplayMotion.action)
-
-add_service_files(
-  FILES
-  RequestMotion.srv
-)
+add_action_files(DIRECTORY action FILES CompliantReplay.action)
 
 generate_messages(
   DEPENDENCIES

@@ -3,6 +3,7 @@
 
 #ifndef Q_MOC_RUN
 
+#include <actionlib/client/simple_action_client.h>
 #include <fstream>
 #include <geometry_msgs/PoseStamped.h>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -13,7 +14,7 @@
 #include <stdio.h>
 #include <sensor_msgs/JointState.h>
 #include <string.h>
-#include <teach_motions/RequestMotion.h>
+#include <teach_motions/CompliantReplayAction.h>
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
@@ -74,11 +75,14 @@ protected Q_SLOTS:
   // readChangeInPose() with the result.
   void updateFilePrefix();
 
-  // Slot to preview the trajectory when clicked.
+  // Slot to preview the trajectory
   void previewTrajectory();
 
-  // Slot to execute the trajectory when clicked.
+  // Slot to execute the trajectory
   void executeTrajectory();
+
+  // Slot to cancel trajectory execution
+  void cancelExecution();
 
   // Then we finish up with protected member variables.
 protected:
@@ -91,7 +95,6 @@ protected:
     joint_states_.name = msg->name;
     joint_states_.position = msg->position;
   }
-  sensor_msgs::JointState joint_states_;
 
   // One-line text editor for entering the datafile name.
   QLineEdit* file_prefix_editor_;
@@ -106,7 +109,7 @@ protected:
   std::vector< teach_motions_gui::arm_pose_info > arm_datas_;
 
   // Preview trajectory button
-  QPushButton *preview_button_, *execute_button_;
+  QPushButton *preview_button_, *execute_button_, *cancel_button_;
 
   // MoveIt! requires an asynch spinner
   ros::AsyncSpinner spinner_;
@@ -118,6 +121,9 @@ protected:
 
   // Need this joint_states msg to display trajectories properly
   ros::Subscriber joint_states_sub_;
+  sensor_msgs::JointState joint_states_;
+
+  actionlib::SimpleActionClient<teach_motions::CompliantReplayAction> action_client_;
 };
 
 } // end namespace teach_motions_gui

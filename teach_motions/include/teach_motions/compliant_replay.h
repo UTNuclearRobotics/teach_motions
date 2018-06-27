@@ -40,7 +40,7 @@
 #define COMPLIANT_REPLAY_H
 
 #include <actionlib/server/simple_action_server.h>
-#include <teach_motions/ReplayMotionAction.h>
+#include <teach_motions/CompliantReplayAction.h>
 
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -106,7 +106,7 @@ public:
 
 private:
   // An action server goal triggers this
-  void actionCB(const teach_motions::ReplayMotionGoalConstPtr &goal);
+  void actionCB(const teach_motions::CompliantReplayGoalConstPtr &goal);
 
   // CB for halt warnings from the jog_arm nodes
   void haltCB(const std_msgs::Bool::ConstPtr& msg);
@@ -155,8 +155,8 @@ private:
   // Publish velocity cmd(s) to the jog_arm node(s)
   std::vector<ros::Publisher> velocity_pubs_;
 
-  actionlib::SimpleActionServer<teach_motions::ReplayMotionAction> action_server_;
-  teach_motions::ReplayMotionResult action_result_;
+  actionlib::SimpleActionServer<teach_motions::CompliantReplayAction> action_server_;
+  teach_motions::CompliantReplayResult action_result_;
 };
 }  // end namespace compliant_replay
 

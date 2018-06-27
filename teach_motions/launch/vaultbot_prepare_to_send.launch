@@ -19,6 +19,6 @@
   <!-- The replay server waits for a request -->
   <!--                                       -->
 
-  <node name="compliant_replay_server" pkg="teach_motions" type="compliant_replay_server" output="screen" />
+  <node name="compliant_replay" pkg="teach_motions" type="compliant_replay" output="screen" />
 
 </launch>

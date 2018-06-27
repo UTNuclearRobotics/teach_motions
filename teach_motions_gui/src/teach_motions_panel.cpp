@@ -13,7 +13,7 @@ namespace teach_motions_gui
 // passing the optional *parent* argument on to the superclass
 // constructor
 TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
-  : rviz::Panel( parent ), spinner_(1)
+  : rviz::Panel( parent ), spinner_(1), action_client_("compliant_replay", true)
 {
   // Next we lay out the "file_prefix" text entry field using a
   // QLabel and a QLineEdit in a QHBoxLayout.
@@ -32,6 +32,9 @@ TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
   execute_button_ = new QPushButton( tr("Execute") );
   layout->addWidget( execute_button_, Qt::AlignTop );
 
+  cancel_button_ = new QPushButton( tr("Cancel Execution") );
+  layout->addWidget( cancel_button_, Qt::AlignTop );
+
   // Wait for user to enter a filepath before enabling buttons
   disableButtons();
 
@@ -43,8 +46,7 @@ TeachMotionsPanel::TeachMotionsPanel( QWidget* parent )
   connect( file_prefix_editor_, SIGNAL( editingFinished() ), this, SLOT( updateFilePrefix() ));
   connect( preview_button_, SIGNAL( clicked() ), this, SLOT( previewTrajectory() ) );
   connect( execute_button_, SIGNAL( clicked() ), this, SLOT( executeTrajectory() ) );
-
-  compliant_replay_client_ = nh_.serviceClient<teach_motions::RequestMotion>("compliant_replay");
+  connect( cancel_button_, SIGNAL( clicked() ), this, SLOT( cancelExecution() ) );
 
   joint_states_sub_ = nh_.subscribe("joint_states", 1, &TeachMotionsPanel::jointStatesCallback, this);
 
@@ -69,7 +71,7 @@ void TeachMotionsPanel::updateFilePrefix()
     enableButtons();
 }
 
-// Slot to preview the trajectory when clicked.
+// Slot to preview the trajectory
 void TeachMotionsPanel::previewTrajectory()
 {
   // Prevent random clicks while this executes
@@ -154,22 +156,13 @@ void TeachMotionsPanel::previewTrajectory()
     ROS_INFO("Cartesian path %.2f%% achieved", fraction * 100.0);
 
     display_trajectory.trajectory.push_back(trajectory);
-
-/*
-    // Prepare to display the trajectory
-    start_state.joint_state.name.insert( start_state.joint_state.name.end(), trajectory.joint_trajectory.joint_names.begin(), trajectory.joint_trajectory.joint_names.end() );
-
-    // Add the joints to the initial state
-    std::vector<double> initial_joints = arm_datas_.at(arm_index).move_group_ptr -> getCurrentJointValues();
-    start_state.joint_state.position.insert( start_state.joint_state.position.end(), initial_joints.begin(), initial_joints.end() );
-*/
   }
 
   // The display requires this start state
   moveit_msgs::RobotState start_state;
   // Get current joint state from /joint_states topic.
   // Wait, if needed
-  while( joint_states_.name.size()==0 )
+  while( joint_states_.name.size()==0 && ros::ok() )
     ros::Duration(0.05).sleep();
   start_state.joint_state = joint_states_;
 
@@ -191,16 +184,18 @@ void TeachMotionsPanel::executeTrajectory()
   std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch file_prefix:=" + file_prefix_.toStdString() ).c_str() );
   ros::Duration(0.5).sleep();
 
-  // Make the service call
-  teach_motions::RequestMotion srv;
-  ROS_INFO_STREAM("[TeachMotionsPanel] Sending a request for compliant motion.");
-  srv.request.file_prefix.data = file_prefix_.toStdString();
-
-  if (!compliant_replay_client_.call(srv))
-    ROS_ERROR_STREAM("[TeachMotionsPanel] Failed to complete the service call.");
+  // Send the goal to the action server
+  teach_motions::CompliantReplayGoal goal;
+  goal.file_prefix.data = file_prefix_.toStdString();
+  action_client_.sendGoal(goal);
 
   enableButtons();
-  ROS_INFO_STREAM("[TeachMotionsPanel] Done with compliant motion request.");
+}
+
+// Slot to cancel trajectory execution
+void TeachMotionsPanel::cancelExecution()
+{
+  action_client_.cancelAllGoals();
 }
 
 // If user inputs new text, update the pose data
@@ -329,12 +324,14 @@ void TeachMotionsPanel::disableButtons()
 {
   preview_button_ -> setEnabled(false);
   execute_button_ -> setEnabled(false);
+  cancel_button_ -> setEnabled(false);
 }
 
 void TeachMotionsPanel::enableButtons()
 {
   preview_button_ -> setEnabled(true);
   execute_button_ -> setEnabled(true);
+  cancel_button_ -> setEnabled(true);
 }
 
 } // end namespace teach_motions_gui

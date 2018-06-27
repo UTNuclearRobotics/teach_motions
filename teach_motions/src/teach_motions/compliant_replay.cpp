@@ -39,13 +39,17 @@
 
 compliant_replay::CompliantReplay::CompliantReplay() :
   tf_listener_(tf_buffer_),
-  action_server_(n_, "replay_motion", boost::bind(&CompliantReplay::actionCB, this, _1), false)
+  action_server_(n_, "compliant_replay", boost::bind(&CompliantReplay::actionCB, this, _1), true)
 {
   // Listen to the jog_arm warning topic. Exit if the jogger stops
   jog_arm_warning_sub_ = n_.subscribe("jog_arm_server/warning", 1, &CompliantReplay::haltCB, this);
+}
 
+// An action server goal triggers this
+void compliant_replay::CompliantReplay::actionCB(const teach_motions::CompliantReplayGoalConstPtr &goal)
+{
   // Datafile name
-  input_file_ = get_ros_params::getStringParam("teach_motions/file_prefix", n_);
+  input_file_ = goal->file_prefix.data;
 
   setup();
 
@@ -75,10 +79,16 @@ compliant_replay::CompliantReplay::CompliantReplay() :
   replay_datafile << output_data_line;
   output_data_line.clear();
 
-  while (ros::ok() && !jog_is_halted_ && !force_or_torque_limit_ && datapoint < arm_data_objects_[0].times_.size() )
+  while (
+    ros::ok() && 
+    !jog_is_halted_ && 
+    !force_or_torque_limit_ && 
+    datapoint < arm_data_objects_[0].times_.size() &&
+    !action_server_.isPreemptRequested()
+    )
   {
     // For each arm
-    for (int arm_index=0; arm_index<num_arms_; arm_index++)
+    for (int arm_index=0; arm_index<num_arms_; ++arm_index)
     {
       arm_data_objects_.at(arm_index).ft_data_ = transformToEEF(arm_data_objects_.at(arm_index).ft_data_, arm_data_objects_[arm_index].jog_command_frame_);
 
@@ -138,23 +148,24 @@ compliant_replay::CompliantReplay::CompliantReplay() :
     output_data_line.clear();
 
     // Go to the next line of datafile
-    datapoint++;
+    ++datapoint;
     rate.sleep();
   }
 
   replay_datafile.close();
 
-  if (jog_is_halted_)
+  if ( jog_is_halted_ )
+  {
     ROS_WARN_NAMED("compliant_replay", "Jogging was halted. Singularity, joint "
                                       "limit, or collision?");
-}
+    action_result_.successful.data = false;
+  }
+  else if ( action_server_.isPreemptRequested() )
+    action_result_.successful.data = false;
+  else
+    action_result_.successful.data = true;
 
-// An action server goal triggers this
-void compliant_replay::CompliantReplay::actionCB(const teach_motions::ReplayMotionGoalConstPtr &goal)
-{
-  action_result_.successful.data = true;
-  if( action_result_.successful.data )
-    action_server_.setSucceeded( action_result_ );
+  action_server_.setSucceeded( action_result_ );
 }
 
 // CB for halt warnings from the jog_arm nodes
@@ -179,10 +190,15 @@ void compliant_replay::CompliantReplay::ftCB1(const geometry_msgs::WrenchStamped
 
 void compliant_replay::CompliantReplay::setup()
 {
+  // system() is bad practice, but loading parameters otherwise is tough.
+  // Would need to parse the yaml file and load them individually.
+  std::system( ("roslaunch teach_motions vaultbot_set_parameters.launch file_prefix:=" + input_file_ ).c_str() );
+  ros::Duration(0.5).sleep();
+
   num_arms_ = get_ros_params::getIntParam("teach_motions/num_arms", n_);
 
   // Set up vectors to hold data/objects for each arm
-  for (int arm_index=0; arm_index<num_arms_; arm_index++)
+  for (int arm_index=0; arm_index<num_arms_; ++arm_index)
   {
     arm_data_objects_.push_back( SingleArmData() );
 
@@ -261,7 +277,7 @@ void compliant_replay::CompliantReplay::readTraj()
   std::string line, value;
 
   // Read vectors for each arm
-  for (int arm_index=0; arm_index<num_arms_; arm_index++)
+  for (int arm_index=0; arm_index<num_arms_; ++arm_index)
   {
     std::ifstream input_file( path + "/data/" + input_file_ + "_arm" + std::to_string(arm_index) + "_processed.csv" );
 
@@ -345,7 +361,7 @@ void compliant_replay::CompliantReplay::setComplianceParams( int arm_index )
   std::ifstream file( path + "/data/stiffness/" + input_file_ + "_arm" + std::to_string(arm_index) + "_stiffness.csv" );
 
   //For each line
-  for (int i=0; i<6; i++)
+  for (int i=0; i<6; ++i)
   {
     // Read a whole line
     getline( file, line);
@@ -369,7 +385,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "compliant_replay");
 
-  compliant_replay::CompliantReplay compliant_replay();
+  compliant_replay::CompliantReplay compliant_replay;
   ros::spin();
 
   return 0;
