@@ -23,6 +23,12 @@ compliant_replay:
   ee0:
     force_torque_topic:  right_ur5_wrench
     force_torque_frame:  right_ur5_base
+    x_stiffness: 8000
+    y_stiffness: 8000
+    z_stiffness: 8000
+    roll_stiffness: 2000
+    pitch_stiffness: 2000
+    yaw_stiffness: 2000
 
   # ee0:
   #   force_torque_topic:  left_ur5_wrench

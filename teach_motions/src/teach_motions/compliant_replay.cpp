@@ -68,7 +68,7 @@ void compliant_replay::CompliantReplay::actionCB(const teach_motions::CompliantR
   // Record data to csv file for future analysis
   std::ofstream replay_datafile;
   std::string path = ros::package::getPath("teach_motions");
-  replay_datafile.open( path + "/data/log.csv" );
+  replay_datafile.open( path + "/data/log/log.csv" );
   std::string output_data_line;
   // Write a description of this datafile
   output_data_line = "This file saves data from the most recent trajectory.\n";
@@ -355,30 +355,21 @@ geometry_msgs::WrenchStamped compliant_replay::CompliantReplay::transformToEEF(
 
 void compliant_replay::CompliantReplay::setComplianceParams( int arm_index )
 {
-  std::string path = ros::package::getPath("teach_motions");
-  std::string line, value;
-
-  std::ifstream file( path + "/data/stiffness/" + input_file_ + "_arm" + std::to_string(arm_index) + "_stiffness.csv" );
-
-  //For each line
-  for (int i=0; i<6; ++i)
+  for (int arm_index=0; arm_index<num_arms_; ++arm_index)
   {
-    // Read a whole line
-    getline( file, line);
-
-    std::stringstream ss(line);
-
-    // Get individual values.
-    // Toss the first column (labels)
-    getline(ss, value, ',');
-
-    if (value != "")  // Check for end of file
-    {
-      getline(ss, value, ',');
-      arm_data_objects_.at(arm_index).stiffness_[i] = std::stod(value);
-    }
+    arm_data_objects_.at(arm_index).stiffness_[0] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/x_stiffness", n_);
+    arm_data_objects_.at(arm_index).stiffness_[1] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/y_stiffness", n_);
+    arm_data_objects_.at(arm_index).stiffness_[2] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/z_stiffness", n_);
+    arm_data_objects_.at(arm_index).stiffness_[3] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/roll_stiffness", n_);
+    arm_data_objects_.at(arm_index).stiffness_[4] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/pitch_stiffness", n_);
+    arm_data_objects_.at(arm_index).stiffness_[5] = get_ros_params::getDoubleParam(
+      "compliant_replay/ee" + std::to_string(arm_index) + "/yaw_stiffness", n_);
   }
-  file.close();
 }
 
 int main(int argc, char** argv)
