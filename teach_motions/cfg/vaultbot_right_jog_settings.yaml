@@ -1,19 +1,22 @@
-jog_arm_server:
-  gazebo: false # Whether the robot is started in simulation environment
-  collision_check: true # Check collisions?
-  command_in_topic:  jog_arm_server/right_arm/delta_jog_cmds
-  command_frame:  right_ur5_ee_link  # TF frame that incoming cmds are given in
-  incoming_command_timeout:  5  # Stop jogging if X seconds elapse without a new cmd
-  joint_topic:  joint_states
-  move_group_name:  right_ur5
-  singularity_threshold:  5.5  # Slow down when the condition number hits this (close to singularity)
-  hard_stop_singularity_threshold: 12. # Stop when the condition number hits this
-  command_out_topic:  right_ur5_controller/right_ur5_joint_speed
-  planning_frame:  right_ur5_base_link
-  low_pass_filter_coeff:  20.  # Larger --> trust the filtered data more, trust the measurements less.
-  publish_period:  0.008  # 1/Nominal publish rate [seconds]
-  scale:
-    linear:  0.1  # Max linear velocity. Meters per pub_period. Units is [m/s]
-    rotational:  0.1  # Max angular velocity. Rads per pub_period. Units is [rad/s]
-  # Publish boolean warnings to this topic
-  warning_topic: jog_arm_server/warning
+gazebo: false # Whether the robot is started in simulation environment
+collision_check: true # Check collisions?
+command_in_topic:  jog_arm_server/right_arm/delta_jog_cmds
+joint_command_in_topic: jog_arm_server/right_arm/joint_delta_jog_cmds
+command_frame:  right_ur5_ee_link  # TF frame that incoming cmds are given in
+incoming_command_timeout:  5  # Stop jogging if X seconds elapse without a new cmd
+joint_topic:  joint_states
+move_group_name:  right_ur5
+singularity_threshold:  5.5  # Slow down when the condition number hits this (close to singularity)
+hard_stop_singularity_threshold: 12. # Stop when the condition number hits this
+command_out_topic:  right_ur5_controller/right_ur5_joint_speed
+planning_frame:  right_ur5_base_link
+low_pass_filter_coeff:  20.  # Larger --> trust the filtered data more, trust the measurements less.
+publish_period:  0.008  # 1/Nominal publish rate [seconds]
+publish_delay: 0.0025  # delay between calculation and execution start of command
+scale:
+  linear:  0.1  # Max linear velocity. Meters per pub_period. Units is [m/s]
+  rotational:  0.1  # Max angular velocity. Rads per pub_period. Units is [rad/s]
+  joint: 0.01  # Max joint angular/linear velocity. Rads or Meters per publish period. Units is [rad/s] or [m/s].
+# Publish boolean warnings to this topic
+warning_topic: jog_arm_server/warning
+joint_limit_margin: -0.1 # added as a buffer to joint limits [radians]. If moving quickly, make this larger.
