@@ -1,0 +1,21 @@
+<launch>
+
+  <!--                             -->
+  <!-- Jogging node for arm -->
+  <!--                             -->
+
+	<node name="teach_motions_jog_arm_server" pkg="jog_arm" type="jog_arm_server" output="screen" >
+	    <param name="parameter_ns" type="string" value="teach_motions_jog_arm_server" />
+
+	    <rosparam command="load" file="$(find teach_motions)/cfg/ur3_jog_config.yaml" />
+
+	</node>
+
+
+  <!--                                       -->
+  <!-- The replay server waits for a request -->
+  <!--                                       -->
+
+  <node name="compliant_replay" pkg="teach_motions" type="compliant_replay" output="screen" />
+
+</launch>

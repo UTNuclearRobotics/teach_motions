@@ -32,9 +32,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-// Demonstrate compliance on a stationary robot. The robot should act like a
-// spring
-// when pushed.
+// Replay a trajectory
 
 #ifndef COMPLIANT_REPLAY_H
 #define COMPLIANT_REPLAY_H
@@ -45,7 +43,6 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/WrenchStamped.h>
-#include <jog_arm/compliant_control.h>
 #include <fstream>
 #include <iostream>
 #include <ros/package.h>
@@ -69,28 +66,6 @@ public:
   // TF frame of incoming jog cmds
   std::string jog_command_frame_ = "";
 
-  // TF frame of force/torque data
-  std::string force_torque_frame_ = "";
-
-  // Key equation: compliance_velocity[i] = wrench[i]/stiffness[i]
-  std::vector<double> stiffness_{25000, 25000, 25000, 2000, 2000, 2000};
-
-  // Related to the cutoff frequency of the low-pass filter.
-  double filter_param_ = 10.;
-
-  // Deadband for force/torque measurements
-  std::vector<double> deadband_{10, 10, 10, 10, 10, 10};
-
-  // Stop when any force exceeds X N, or torque exceeds X Nm
-  // The robot controller's built-in safety limits are ~90 N, ? Nm
-  std::vector<double> end_condition_wrench_{70, 70, 70, 60, 60, 60};
-
-  // Current force/torque data
-  geometry_msgs::WrenchStamped ft_data_;
-
-  // Topic from force/torque sensor
-  std::string force_torque_data_topic_;
-
   // Outgoing velocity msg
   std::vector<double> velocity_out_{0, 0, 0, 0, 0, 0};
 };
@@ -111,10 +86,6 @@ private:
   // CB for halt warnings from the jog_arm nodes
   void haltCB(const std_msgs::Bool::ConstPtr& msg);
 
-  // CBs for force/torque data
-  void ftCB0(const geometry_msgs::WrenchStamped::ConstPtr& msg);
-  void ftCB1(const geometry_msgs::WrenchStamped::ConstPtr& msg);
-
   // Transform a wrench to the EE frame
   geometry_msgs::WrenchStamped transformToEEF(const geometry_msgs::WrenchStamped wrench_in,
                                               const std::string desired_ee_frame);
@@ -129,12 +100,8 @@ private:
 
   ros::NodeHandle n_;
 
-  ros::Subscriber jog_arm_warning_sub_;
-
   // Did one of the jog nodes halt motion?
   bool jog_is_halted_ = false;
-  // Was a force/torque target achieved?
-  bool force_or_torque_limit_ = false;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -143,14 +110,6 @@ private:
 
   // Store the trajectory data for each arm
   std::vector<SingleArmData> arm_data_objects_;
-
-  // Compliance for each arm
-  std::vector<compliant_control::CompliantControl> compliance_objects_;
-  std::vector<compliant_control::ExitCondition> compliance_status_;
-
-  // Subscribe to force/torque topics
-  // Unfortunately this is hard-coded to 2 callback functions because programmatically generating multiple callbacks ain't easy.
-  std::vector<ros::Subscriber> force_torque_subs_;
 
   // Publish velocity cmd(s) to the jog_arm node(s)
   std::vector<ros::Publisher> velocity_pubs_;

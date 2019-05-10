@@ -7,8 +7,8 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   genmsg
-  jog_arm
   message_generation
+  moveit_experimental # for jogging
   roscpp
   rospy
   std_msgs
@@ -25,7 +25,7 @@ generate_messages(
 )
 
 catkin_package(
- CATKIN_DEPENDS jog_arm std_msgs tf tf2_geometry_msgs
+ CATKIN_DEPENDS moveit_experimental std_msgs tf tf2_geometry_msgs
 )
 
 include_directories(

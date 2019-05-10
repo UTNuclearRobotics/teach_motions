@@ -1,0 +1,22 @@
+
+teach_motions:
+  output_tf_frame:  base_link  # Frame to save the recorded data in
+  interpolation_timestep:  0.008  # 125 Hz
+  num_arms:  1
+  joints_topic:  joint_states
+  teach_mode_velocity_scale:  0.25  # Scale the speed of taught motions. Affects the recorded times only.
+  ee0:
+    movegroup_name:  manipulator
+    ee_frame_name: ee_link
+    jog_cmd_topic:  jog_arm_server/delta_jog_cmds
+
+compliant_replay:
+  ee0:
+    force_torque_topic:  wrench
+    force_torque_frame:  base_link
+    x_stiffness: 8000
+    y_stiffness: 8000
+    z_stiffness: 8000
+    roll_stiffness: 2000
+    pitch_stiffness: 2000
+    yaw_stiffness: 2000
